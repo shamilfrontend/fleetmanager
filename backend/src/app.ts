@@ -1,0 +1,94 @@
+import dotenv from 'dotenv'
+dotenv.config()
+
+import express, { type Request, type Response, type NextFunction } from 'express'
+import cors from 'cors'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import rateLimit from 'express-rate-limit'
+
+import connectDB from './config/database.js'
+import authRoutes from './routes/auth.js'
+import carRoutes from './routes/cars.js'
+import employeeRoutes from './routes/employees.js'
+import cardRoutes from './routes/cards.js'
+import transactionRoutes from './routes/transactions.js'
+import maintenanceRoutes from './routes/maintenance.js'
+import logger from './utils/logger.js'
+
+const app = express()
+const PORT = process.env.PORT || 5002
+
+void connectDB()
+
+app.use(cors())
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 1000,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false
+})
+app.use('/api', apiLimiter)
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const uploadsPath = path.join(__dirname, '..', 'uploads')
+app.use('/uploads', express.static(uploadsPath))
+
+app.use('/api/auth', authRoutes)
+app.use('/api/cars', carRoutes)
+app.use('/api/employees', employeeRoutes)
+app.use('/api/cards', cardRoutes)
+app.use('/api/transactions', transactionRoutes)
+app.use('/api/maintenance', maintenanceRoutes)
+
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({ status: 'OK', message: 'FleetManager API is running' })
+})
+
+interface HttpError {
+  message?: string
+  statusCode?: number
+  code?: number
+  name?: string
+  stack?: string
+  errors?: unknown
+  keyPattern?: Record<string, number>
+}
+
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction): void => {
+  const error = err as HttpError
+  logger.error('Unhandled error', {
+    message: error?.message,
+    stack: error?.stack,
+    path: req.path,
+    method: req.method
+  })
+
+  if (error?.name === 'ValidationError') {
+    res.status(400).json({
+      message: 'Ошибка валидации данных',
+      details: error.errors
+    })
+    return
+  }
+
+  if (error?.name === 'CastError') {
+    res.status(400).json({ message: 'Некорректный идентификатор ресурса' })
+    return
+  }
+
+  const status =
+    error?.statusCode != null && Number.isInteger(error.statusCode) ? error.statusCode : 500
+  res.status(status).json({
+    message: status === 500 ? 'Что-то пошло не так!' : (error?.message ?? 'Ошибка'),
+    error: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+  })
+})
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`)
+})

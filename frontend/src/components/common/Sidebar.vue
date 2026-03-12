@@ -30,7 +30,6 @@ const navItems = computed(() => {
 	const analytics = authStore.isManager || authStore.isAdmin
 		? [
 			{ path: '/analytics', label: 'Аналитика', icon: 'analytics' },
-			{ path: '/link-history', label: 'История связей', icon: 'link' },
 			{ path: '/link-builder', label: 'Конструктор связей', icon: 'wrench' },
 		]
 		: [];

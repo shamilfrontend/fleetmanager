@@ -91,12 +91,6 @@ const router = createRouter({
 					component: () => import('@/pages/Settings.vue'),
 				},
 				{
-					path: 'link-history',
-					name: 'LinkHistory',
-					component: () => import('@/pages/LinkHistory.vue'),
-					meta: { roles: ['admin', 'manager'] },
-				},
-				{
 					path: 'link-builder',
 					name: 'LinkBuilder',
 					component: () => import('@/pages/LinkBuilder.vue'),
