@@ -1,8 +1,18 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'JWT_REFRESH_SECRET'] as const
+const missing = requiredEnvVars.filter((key) => !process.env[key]?.trim())
+if (missing.length > 0) {
+  console.error(
+    `Ошибка: не заданы обязательные переменные окружения: ${missing.join(', ')}. Скопируйте .env.example в .env и заполните значения.`
+  )
+  process.exit(1)
+}
+
 import express, { type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import rateLimit from 'express-rate-limit'
@@ -21,6 +31,7 @@ const PORT = process.env.PORT || 5002
 
 void connectDB()
 
+app.use(helmet())
 app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -78,6 +89,14 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction): void =
 
   if (error?.name === 'CastError') {
     res.status(400).json({ message: 'Некорректный идентификатор ресурса' })
+    return
+  }
+
+  if (error?.code === 11000) {
+    res.status(409).json({
+      message: 'Запись с таким значением уже существует',
+      keyPattern: error.keyPattern
+    })
     return
   }
 

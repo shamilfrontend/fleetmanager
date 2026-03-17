@@ -17,6 +17,7 @@ import { filterData } from '@/utils/filter';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import { maintenanceApi, type MaintenanceHistory } from '@/api/maintenance';
 import { formatDate, formatCurrency } from '@/utils/helpers';
+import { API_ORIGIN } from '@/utils/constants';
 import { carsApi } from '@/api/cars';
 import type { Car } from '@/types';
 
@@ -261,20 +262,14 @@ const getServiceTypeLabel = (type: string) => {
 
 const getPhotoUrl = (photoPath: string) => {
 	if (!photoPath) return '';
-	// Если путь уже полный URL, возвращаем как есть
 	if (photoPath.startsWith('http')) return photoPath;
-	// Иначе формируем URL относительно бэкенда
-	const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5002/api';
-	const baseUrl = apiUrl.replace('/api', '');
-	return `${baseUrl}${photoPath}`;
+	return `${API_ORIGIN}${photoPath}`;
 };
 
 const getDocumentUrl = (docPath: string) => {
 	if (!docPath) return '';
 	if (docPath.startsWith('http')) return docPath;
-	const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5002/api';
-	const baseUrl = apiUrl.replace('/api', '');
-	return `${baseUrl}${docPath}`;
+	return `${API_ORIGIN}${docPath}`;
 };
 
 const getDocumentName = (docPath: string) => docPath.split('/').pop() || 'Документ';

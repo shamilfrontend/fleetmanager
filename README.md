@@ -86,7 +86,7 @@ yarn dev
 ## Структура проекта
 
 ```
-vehicle-fleet/
+fleetmanager/
 ├── frontend/          # Vue 3 приложение
 │   ├── src/
 │   │   ├── api/       # API клиенты

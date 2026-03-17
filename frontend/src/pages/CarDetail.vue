@@ -12,6 +12,7 @@ import { employeesApi } from '@/api/employees';
 import { cardsApi } from '@/api/cards';
 import { maintenanceApi, type MaintenanceHistory } from '@/api/maintenance';
 import { formatDate, formatCurrency, formatNumber } from '@/utils/helpers';
+import { API_ORIGIN } from '@/utils/constants';
 import { toast } from '@/utils/toast';
 import type { Car, Employee, Card } from '@/types';
 
@@ -85,17 +86,13 @@ const getServiceTypeLabel = (type: string) => {
 const getPhotoUrl = (photoPath: string) => {
 	if (!photoPath) return '';
 	if (photoPath.startsWith('http')) return photoPath;
-	const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5002/api';
-	const baseUrl = apiUrl.replace('/api', '');
-	return `${baseUrl}${photoPath}`;
+	return `${API_ORIGIN}${photoPath}`;
 };
 
 const getDocumentUrl = (docPath: string) => {
 	if (!docPath) return '';
 	if (docPath.startsWith('http')) return docPath;
-	const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5002/api';
-	const baseUrl = apiUrl.replace('/api', '');
-	return `${baseUrl}${docPath}`;
+	return `${API_ORIGIN}${docPath}`;
 };
 
 const getDocumentName = (docPath: string) => docPath.split('/').pop() || 'Документ';

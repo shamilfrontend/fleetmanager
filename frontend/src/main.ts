@@ -16,13 +16,19 @@ app.use(router);
 
 const authStore = useAuthStore();
 
-authStore.initAuth().then(() => {
+function mountApp(): void {
 	setApiErrorHandlers({
 		onUnauthorized: async () => {
 			await authStore.logout();
-			router.push('/login');
+			void router.push('/login');
 		},
 		onError: (message) => toast.error(message),
 	});
 	app.mount('#app');
+}
+
+authStore.initAuth().then(mountApp).catch(() => {
+	// Сеть, неверный refresh token и т.д. — всё равно монтируем приложение;
+	// роутер перенаправит неавторизованного пользователя на /login
+	mountApp();
 });
