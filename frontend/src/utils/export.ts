@@ -1,15 +1,15 @@
 /** Получение значения из объекта по ключу (поддержка вложенных полей через точку) */
-function getValue(row: any, key: string): any {
+function getValue(row: Record<string, unknown> | null, key: string): unknown {
 	if (row == null) return undefined;
 	const parts = key.split('.');
-	let v: any = row;
+	let v: unknown = row;
 	for (const p of parts) {
-		v = v?.[p];
+		v = (v as Record<string, unknown>)?.[p];
 	}
 	return v;
 }
 
-export const exportToCSV = (data: any[], filename: string, columns: Array<{ key: string; label: string }>) => {
+export const exportToCSV = (data: Record<string, unknown>[], filename: string, columns: Array<{ key: string; label: string }>) => {
 	if (!data || data.length === 0) {
 		return;
 	}
@@ -41,14 +41,14 @@ export const exportToCSV = (data: any[], filename: string, columns: Array<{ key:
 };
 
 export const exportToExcel = async (
-	data: any[],
+	data: Record<string, unknown>[],
 	filename: string,
 	columns: Array<{ key: string; label: string }>,
 ): Promise<void> => {
 	if (!data || data.length === 0) return;
 	const XLSX = await import('xlsx');
 	const rows = data.map((row) => {
-		const obj: Record<string, any> = {};
+		const obj: Record<string, unknown> = {};
 		columns.forEach((col) => {
 			obj[col.label] = getValue(row, col.key);
 		});
@@ -61,7 +61,7 @@ export const exportToExcel = async (
 	XLSX.writeFile(wb, name);
 };
 
-export const exportToJSON = (data: any, filename: string) => {
+export const exportToJSON = (data: unknown, filename: string) => {
 	if (!data) {
 		return;
 	}

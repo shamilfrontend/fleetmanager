@@ -1,0 +1,7 @@
+{
+  "name": "@fleetmanager/types",
+  "version": "1.0.0",
+  "private": true,
+  "types": "types/index.ts",
+  "main": "types/index.ts"
+}

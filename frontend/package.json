@@ -7,9 +7,14 @@
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --ignore-path .gitignore",
-    "lint:fix": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
+    "lint:fix": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write \"src/**/*.{ts,vue,js,json,css,scss}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,vue,js,json,css,scss}\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@fleetmanager/types": "file:../shared",
     "axios": "^1.6.7",
     "chart.js": "^4.4.1",
     "pinia": "^2.1.7",
@@ -27,9 +32,13 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-vue": "^9.23.0",
+    "prettier": "^3.2.5",
     "sass": "^1.71.1",
     "typescript": "^5.3.3",
     "vite": "^5.1.0",
-    "vue-tsc": "^1.8.27"
+    "vitest": "^2.1.0",
+    "vue-tsc": "^1.8.27",
+    "@vue/test-utils": "^2.4.4",
+    "jsdom": "^24.0.0"
   }
 }

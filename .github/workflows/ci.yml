@@ -27,9 +27,15 @@ jobs:
         working-directory: frontend
         run: yarn lint
 
+      - name: Test
+        working-directory: frontend
+        run: yarn test
+
       - name: Build
         working-directory: frontend
         run: yarn build
+        env:
+          VITE_API_URL: https://api.example.com/api
 
   backend:
     name: Backend

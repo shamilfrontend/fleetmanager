@@ -109,7 +109,7 @@ const carStatusData = computed(() => {
 
 const topDriversData = computed(() => {
 	const driverExpenses = filteredTransactions.value.reduce((acc, t) => {
-		const empId = typeof t.employee_id === 'string' ? t.employee_id : (t.employee_id as any)?._id || '';
+		const empId = typeof t.employee_id === 'string' ? t.employee_id : (t.employee_id as { _id?: string })?._id ?? '';
 		const emp = employees.value.find((e) => e._id === empId);
 		if (emp) {
 			acc[emp.full_name] = (acc[emp.full_name] || 0) + t.amount;
@@ -160,7 +160,7 @@ const avgVolume = computed(() => {
 // Рейтинг водителей по экономии
 const driversRating = computed(() => {
 	const driverStats = filteredTransactions.value.reduce((acc, t) => {
-		const empId = typeof t.employee_id === 'string' ? t.employee_id : (t.employee_id as any)?._id || '';
+		const empId = typeof t.employee_id === 'string' ? t.employee_id : (t.employee_id as { _id?: string })?._id ?? '';
 		const emp = employees.value.find((e) => e._id === empId);
 
 		if (!emp) return acc;
@@ -183,7 +183,7 @@ const driversRating = computed(() => {
 		acc[driverName].transactionCount += 1;
 
 		// Вычисляем пробег между транзакциями (упрощенно)
-		const carId = typeof t.car_id === 'string' ? t.car_id : (t.car_id as any)?._id || '';
+		const carId = typeof t.car_id === 'string' ? t.car_id : (t.car_id as { _id?: string })?._id ?? '';
 		acc[driverName].cars.add(carId);
 
 		return acc;
@@ -208,7 +208,7 @@ const driversRating = computed(() => {
 		}) => {
 			// Находим все транзакции этого водителя
 			const driverTransactions = filteredTransactions.value.filter((t) => {
-				const empId = typeof t.employee_id === 'string' ? t.employee_id : (t.employee_id as any)?._id || '';
+				const empId = typeof t.employee_id === 'string' ? t.employee_id : (t.employee_id as { _id?: string })?._id ?? '';
 				const emp = employees.value.find((e) => e._id === empId);
 				return emp?.full_name === driver.name;
 			});
@@ -248,8 +248,8 @@ const driversRating = computed(() => {
 				carsCount: driver.cars.size,
 			};
 		})
-		.filter((d: any) => d.totalDistance > 0) // Фильтруем водителей с недостаточными данными
-		.sort((a: any, b: any) => a.consumptionPer100km - b.consumptionPer100km) // Сортируем по экономичности (меньше расход = лучше)
+		.filter((d: { totalDistance: number }) => d.totalDistance > 0) // Фильтруем водителей с недостаточными данными
+		.sort((a: { consumptionPer100km: number }, b: { consumptionPer100km: number }) => a.consumptionPer100km - b.consumptionPer100km) // Сортируем по экономичности (меньше расход = лучше)
 		.slice(0, 10); // Топ-10 самых экономичных
 
 	return rating;

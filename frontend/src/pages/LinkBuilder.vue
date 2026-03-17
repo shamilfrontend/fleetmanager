@@ -7,6 +7,7 @@ import { employeesApi } from '@/api/employees';
 import { cardsApi } from '@/api/cards';
 import { carsApi } from '@/api/cars';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import type { Employee, Card, Car } from '@/types';
 
 interface PendingChange {
@@ -148,8 +149,8 @@ const saveChanges = async () => {
 		toast.success('Изменения успешно сохранены');
 		pendingChanges.value = [];
 		await loadData();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка сохранения изменений');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	} finally {
 		saving.value = false;
 	}

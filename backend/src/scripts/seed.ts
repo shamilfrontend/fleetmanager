@@ -85,16 +85,18 @@ const seedDatabase = async (): Promise<void> => {
     console.log('База данных очищена')
 
     console.log('Создание пользователей...')
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'admin123'
+    const managerPassword = process.env.SEED_MANAGER_PASSWORD ?? 'manager123'
     const adminUser = new User({
       email: 'admin@fleetmanager.ru',
-      password: 'admin123',
+      password: adminPassword,
       role: 'admin'
     })
     await adminUser.save()
 
     const managerUser = new User({
       email: 'manager@fleetmanager.ru',
-      password: 'manager123',
+      password: managerPassword,
       role: 'manager'
     })
     await managerUser.save()

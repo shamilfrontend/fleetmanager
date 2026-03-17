@@ -83,28 +83,25 @@ yarn dev
 
 Приложение будет доступно по адресу `http://localhost:3000`
 
+В production при сборке frontend обязательно задайте `VITE_API_URL` (см. `frontend/.env.example`).
+
+## CI
+
+При push и pull request в ветки `main` или `master` в GitHub Actions запускаются:
+
+- **Frontend:** установка зависимостей, `yarn lint`, `yarn test`, `yarn build`
+- **Backend:** установка зависимостей, `yarn lint`, `yarn test --run`, `yarn build`
+
+Подробнее о локальных проверках и правилах разработки — в [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Структура проекта
 
 ```
 fleetmanager/
-├── frontend/          # Vue 3 приложение
-│   ├── src/
-│   │   ├── api/       # API клиенты
-│   │   ├── components/# Vue компоненты
-│   │   ├── layouts/   # Layout компоненты
-│   │   ├── pages/     # Страницы приложения
-│   │   ├── router/    # Vue Router конфигурация
-│   │   ├── stores/    # Pinia stores
-│   │   └── utils/     # Утилиты
-│   └── package.json
-├── backend/           # Express API
-│   ├── src/
-│   │   ├── models/    # Mongoose модели
-│   │   ├── controllers/# Контроллеры
-│   │   ├── routes/    # Маршруты API
-│   │   ├── middleware/# Middleware
-│   │   └── config/    # Конфигурация
-│   └── package.json
+├── frontend/          # Vue 3 приложение (см. frontend/README.md)
+├── backend/           # Express API (см. backend/README.md)
+├── shared/            # Общие типы (@fleetmanager/types)
+├── CONTRIBUTING.md    # Правила разработки и CI
 └── README.md
 ```
 
@@ -113,6 +110,10 @@ fleetmanager/
 - **Администратор** - полный доступ ко всем разделам
 - **Менеджер** - управление сотрудниками, картами, транзакциями
 - **Водитель** - ограниченный доступ (личные карты, гараж)
+
+## Документация API
+
+Описание API в формате OpenAPI 3.0: `backend/openapi.yaml`. В режиме разработки backend отдаёт Swagger UI по адресу `http://localhost:5002/api-docs`.
 
 ## API Endpoints
 

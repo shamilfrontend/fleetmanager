@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import AppButton from '@/components/common/AppButton.vue';
 import Confirm from '@/components/common/Confirm.vue';
 import { useConfirm } from '@/composables/useConfirm';
@@ -36,8 +37,8 @@ const handleRoleChange = async (userId: string, role: string) => {
 		if (userId === authStore.user?._id) {
 			authStore.setUser({ ...authStore.user!, role });
 		}
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка обновления роли');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	} finally {
 		updatingRoleId.value = null;
 	}
@@ -50,8 +51,8 @@ const openDeleteUserConfirm = (u: { _id: string; email: string }) => {
 				await authApi.deleteUser(u._id);
 				toast.success('Пользователь удалён');
 				loadUsers();
-			} catch (error: any) {
-				toast.error(error?.response?.data?.message || 'Ошибка удаления');
+			} catch (error: unknown) {
+				toast.error(getApiErrorMessage(error));
 			}
 		},
 	});
@@ -103,8 +104,8 @@ const handleCreateUser = async () => {
 		toast.success('Пользователь создан');
 		createUserForm.value = { email: '', password: '', role: 'driver' };
 		loadUsers();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка создания пользователя');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	} finally {
 		creatingUser.value = false;
 	}
@@ -133,8 +134,8 @@ const handleChangePassword = async () => {
 			newPassword: '',
 			confirmPassword: '',
 		};
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка смены пароля');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	} finally {
 		changingPassword.value = false;
 	}
@@ -166,9 +167,9 @@ const exportData = async () => {
 		exportToJSON(allData, `fleetmanager-export-${new Date().toISOString().split('T')[0]}.json`);
 
 		toast.success('Данные успешно экспортированы');
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Ошибка экспорта данных:', error);
-		toast.error('Ошибка экспорта данных');
+		toast.error(getApiErrorMessage(error));
 	}
 };
 

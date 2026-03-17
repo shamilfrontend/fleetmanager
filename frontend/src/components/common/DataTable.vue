@@ -9,20 +9,20 @@ interface Column {
 	sortable?: boolean
 }
 
-interface Action {
+interface Action<T = Record<string, unknown>> {
 	name: string
 	label: string
-	handler: (row: any) => void
+	handler: (row: T) => void
 	type?: 'primary' | 'danger' | 'default'
 }
 
-interface Props {
-	data: any[]
+interface Props<T = Record<string, unknown>> {
+	data: T[]
 	columns: Column[]
-	actions?: Action[]
+	actions?: Action<T>[]
 	rowIdKey?: string
 	selectable?: boolean
-	selectedRows?: any[]
+	selectedRows?: T[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -33,7 +33,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-	'update:selectedRows': [rows: any[]]
+	'update:selectedRows': [rows: Record<string, unknown>[]]
 }>();
 
 // Фильтруем undefined/null значения из данных и проверяем наличие данных
@@ -96,13 +96,13 @@ const filteredData = computed(() =>
 
 const selectedRowsSet = computed(() => new Set(props.selectedRows.map((row) => getRowId(row, 0))));
 
-const isSelected = (row: any) => {
+const isSelected = (row: Record<string, unknown>) => {
 	if (!props.selectable) return false;
 	const rowId = getRowId(row, 0);
 	return selectedRowsSet.value.has(rowId);
 };
 
-const toggleSelect = (row: any) => {
+const toggleSelect = (row: Record<string, unknown>) => {
 	if (!props.selectable) return;
 	const currentSelected = [...props.selectedRows];
 	const rowId = getRowId(row, 0);
@@ -136,7 +136,7 @@ const toggleSelectAll = () => {
 	}
 };
 
-const getRowId = (row: any, index: number) => {
+const getRowId = (row: Record<string, unknown> | null, index: number) => {
 	if (!row || typeof row !== 'object') {
 		return `row-${index}`;
 	}
@@ -149,7 +149,7 @@ const getRowId = (row: any, index: number) => {
 };
 
 // Функция для безопасного получения значения ячейки
-const getCellValue = (row: any, key: string) => {
+const getCellValue = (row: Record<string, unknown> | null, key: string) => {
 	if (!row || typeof row !== 'object') {
 		return undefined;
 	}
@@ -181,12 +181,12 @@ const getCellValue = (row: any, key: string) => {
 };
 
 // Оптимизированная функция для получения и форматирования значения ячейки
-const formatCellValue = (row: any, key: string, format?: string) => {
+const formatCellValue = (row: Record<string, unknown>, key: string, format?: string) => {
 	const value = getCellValue(row, key);
 	return formatValue(value, format);
 };
 
-const formatValue = (value: any, format?: string) => {
+const formatValue = (value: unknown, format?: string) => {
 	// Проверяем на null и undefined
 	if (value === null || value === undefined) {
 		return '-';

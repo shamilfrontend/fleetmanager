@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '@/utils/constants';
+import { getApiErrorMessage } from '@/utils/apiError';
 
 const apiClient = axios.create({
 	baseURL: API_BASE_URL,
@@ -34,7 +35,7 @@ apiClient.interceptors.response.use(
 	(response) => response,
 	(error) => {
 		const status = error.response?.status;
-		const message = error.response?.data?.message || error.message || 'Ошибка запроса';
+		const message = getApiErrorMessage(error);
 
 		if (status === 401) {
 			if (onUnauthorized) {

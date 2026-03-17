@@ -15,6 +15,7 @@ import { carsApi } from '@/api/cars';
 import { cardsApi } from '@/api/cards';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import { filterData } from '@/utils/filter';
 import type {
@@ -135,8 +136,8 @@ const tableActions = [
 						await transactionsApi.delete(row._id);
 						toast.success('Транзакция успешно удалена');
 						await fetchTransactions();
-					} catch (error: any) {
-						toast.error(error?.response?.data?.message || 'Ошибка удаления транзакции');
+					} catch (error: unknown) {
+						toast.error(getApiErrorMessage(error));
 					}
 				},
 			});
@@ -209,8 +210,8 @@ const handleBulkStatusSave = async () => {
 		showBulkStatusModal.value = false;
 		selectedTransactions.value = [];
 		await fetchTransactions();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка изменения статуса');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	}
 };
 
@@ -226,8 +227,8 @@ const bulkDelete = () => {
 				toast.success(`Удалено ${count} транзакций`);
 				selectedTransactions.value = [];
 				await fetchTransactions();
-			} catch (error: any) {
-				toast.error(error?.response?.data?.message || 'Ошибка удаления транзакций');
+			} catch (error: unknown) {
+				toast.error(getApiErrorMessage(error));
 			}
 		},
 	});
@@ -260,8 +261,8 @@ const handleSave = async () => {
 		resetForm();
 		showModal.value = false;
 		await fetchTransactions();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка сохранения транзакции');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	}
 };
 

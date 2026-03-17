@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { employeesApi } from '@/api/employees';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import AppButton from '@/components/common/AppButton.vue';
 import Confirm from '@/components/common/Confirm.vue';
 import Breadcrumbs from '@/components/common/Breadcrumbs.vue';
@@ -42,13 +43,14 @@ const cardNumber = computed(() => {
 const assignedCars = computed(() => {
 	const cars = employee.value?.assigned_cars;
 	if (!cars || !Array.isArray(cars)) return [];
-	return cars.map((c: any) => (typeof c === 'object' && c !== null && c._id
+	type CarItem = string | { _id: string; brand?: string; model?: string; plate_number?: string };
+	return cars.map((c: CarItem) => (typeof c === 'object' && c !== null && '_id' in c
 		? {
-			_id: c._id, brand: c.brand || '', model: c.model || '', plate_number: c.plate_number || '',
+			_id: c._id, brand: c.brand ?? '', model: c.model ?? '', plate_number: c.plate_number ?? '',
 		}
 		: {
 			_id: c, brand: '', model: '', plate_number: '',
-		})).filter((c: any) => c._id);
+		})).filter((c): c is { _id: string } => Boolean(c._id));
 });
 
 const formatDate = (dateStr: string | undefined) => {
@@ -67,8 +69,8 @@ const loadEmployee = async () => {
 	error.value = '';
 	try {
 		employee.value = await employeesApi.getById(id);
-	} catch (e: any) {
-		error.value = e?.response?.data?.message || 'Не удалось загрузить данные';
+	} catch (e: unknown) {
+		error.value = getApiErrorMessage(e);
 		employee.value = null;
 	} finally {
 		loading.value = false;
@@ -92,8 +94,8 @@ const deleteEmployee = () => {
 				await employeesApi.delete(id);
 				toast.success('Сотрудник удалён');
 				router.push({ name: 'Employees' });
-			} catch (e: any) {
-				toast.error(e?.response?.data?.message || 'Ошибка удаления');
+			} catch (e: unknown) {
+				toast.error(getApiErrorMessage(e));
 			}
 		},
 	});

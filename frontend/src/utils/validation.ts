@@ -5,14 +5,14 @@ export interface ValidationRule {
 	minLength?: number
 	maxLength?: number
 	pattern?: RegExp
-	custom?: (value: any) => boolean | string
+	custom?: (value: unknown) => boolean | string
 }
 
 export interface ValidationErrors {
 	[key: string]: string
 }
 
-export const validateField = (value: any, rules: ValidationRule, fieldName: string): string | null => {
+export const validateField = (value: unknown, rules: ValidationRule, fieldName: string): string | null => {
 	if (rules.required && (value === null || value === undefined || value === '')) {
 		return `${fieldName} обязателен для заполнения`;
 	}

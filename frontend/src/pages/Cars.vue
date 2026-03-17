@@ -13,6 +13,7 @@ import Pagination from '@/components/common/Pagination.vue';
 import { useCarsStore } from '@/stores/cars';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import { filterData } from '@/utils/filter';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import { maintenanceApi, type MaintenanceHistory } from '@/api/maintenance';
@@ -153,8 +154,8 @@ const handleBulkStatusSave = async () => {
 		clearSelection();
 		showBulkStatusModal.value = false;
 		await fetchCarsPage();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка изменения статуса');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	}
 };
 
@@ -170,8 +171,8 @@ const bulkDelete = () => {
 				toast.success(`Удалено ${count} автомобилей`);
 				clearSelection();
 				await fetchCarsPage();
-			} catch (error: any) {
-				toast.error(error?.response?.data?.message || 'Ошибка удаления');
+			} catch (error: unknown) {
+				toast.error(getApiErrorMessage(error));
 			}
 		},
 	});
@@ -234,8 +235,8 @@ const handleSaveMaintenance = async () => {
 		await loadMaintenanceHistory(selectedCar.value._id);
 		resetMaintenanceForm();
 		await fetchCarsPage();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка добавления записи ТО');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	}
 };
 
@@ -287,8 +288,8 @@ const handlePhotoUpload = async (event: Event) => {
 		}
 		toast.success('Фотография загружена');
 		await fetchCarsPage();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка загрузки фотографии');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	} finally {
 		uploadingPhoto.value = false;
 		if (target) target.value = '';
@@ -307,8 +308,8 @@ const deletePhoto = (photoPath: string) => {
 				}
 				toast.success('Фотография удалена');
 				await fetchCarsPage();
-			} catch (error: any) {
-				toast.error(error?.response?.data?.message || 'Ошибка удаления фотографии');
+			} catch (error: unknown) {
+				toast.error(getApiErrorMessage(error));
 			}
 		},
 	});
@@ -327,8 +328,8 @@ const handleDocumentUpload = async (event: Event) => {
 		}
 		toast.success('Документ загружен');
 		await fetchCarsPage();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка загрузки документа');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	} finally {
 		uploadingDocument.value = false;
 		if (target) target.value = '';
@@ -347,8 +348,8 @@ const deleteDocument = (documentPath: string) => {
 				}
 				toast.success('Документ удален');
 				await fetchCarsPage();
-			} catch (error: any) {
-				toast.error(error?.response?.data?.message || 'Ошибка удаления документа');
+			} catch (error: unknown) {
+				toast.error(getApiErrorMessage(error));
 			}
 		},
 	});
@@ -368,7 +369,7 @@ const tableActions = [
 	{
 		name: 'view',
 		label: 'Просмотр',
-		handler: (row: any) => {
+		handler: (row: Car) => {
 			// Проверяем наличие ID в разных возможных форматах
 			const carId = row?._id || row?.id;
 			if (!carId) {
@@ -409,8 +410,8 @@ const tableActions = [
 						await carsStore.deleteCar(row._id);
 						toast.success('Автомобиль успешно удален');
 						await fetchCarsPage();
-					} catch (error: any) {
-						toast.error(error?.response?.data?.message || 'Ошибка удаления автомобиля');
+					} catch (error: unknown) {
+						toast.error(getApiErrorMessage(error));
 					}
 				},
 			});
@@ -471,8 +472,8 @@ const handleSave = async () => {
 		resetForm();
 		showModal.value = false;
 		await fetchCarsPage();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка сохранения автомобиля');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	}
 };
 

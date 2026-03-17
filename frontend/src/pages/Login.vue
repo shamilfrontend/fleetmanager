@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import AppButton from '@/components/common/AppButton.vue';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -20,8 +21,8 @@ const handleLogin = async () => {
 		await authStore.login(email.value, password.value);
 		toast.success('Вход выполнен успешно');
 		router.push('/');
-	} catch (err: any) {
-		const errorMessage = err?.response?.data?.message || 'Ошибка входа';
+	} catch (err: unknown) {
+		const errorMessage = getApiErrorMessage(err);
 		error.value = errorMessage;
 		toast.error(errorMessage);
 	} finally {

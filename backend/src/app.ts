@@ -15,7 +15,10 @@ import cors from 'cors'
 import helmet from 'helmet'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import fs from 'fs'
 import rateLimit from 'express-rate-limit'
+import swaggerUi from 'swagger-ui-express'
+import yaml from 'js-yaml'
 
 import connectDB from './config/database.js'
 import authRoutes from './routes/auth.js'
@@ -32,7 +35,11 @@ const PORT = process.env.PORT || 5002
 void connectDB()
 
 app.use(helmet())
-app.use(cors())
+const isProd = process.env.NODE_ENV === 'production'
+const corsOrigin = isProd && process.env.FRONTEND_ORIGIN
+  ? process.env.FRONTEND_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+  : undefined
+app.use(cors(corsOrigin ? { origin: corsOrigin } : {}))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -60,6 +67,15 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'FleetManager API is running' })
 })
 
+if (process.env.NODE_ENV !== 'production') {
+  const openapiPath = path.join(__dirname, '..', 'openapi.yaml')
+  if (fs.existsSync(openapiPath)) {
+    const spec = yaml.load(fs.readFileSync(openapiPath, 'utf8')) as object
+    const swaggerHandlers = [swaggerUi.serve, swaggerUi.setup(spec, { customSiteTitle: 'FleetManager API' })] as unknown as express.RequestHandler[]
+    app.use('/api-docs', ...swaggerHandlers)
+  }
+}
+
 interface HttpError {
   message?: string
   statusCode?: number
@@ -82,7 +98,7 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction): void =
   if (error?.name === 'ValidationError') {
     res.status(400).json({
       message: 'Ошибка валидации данных',
-      details: error.errors
+      errors: error.errors
     })
     return
   }
@@ -93,10 +109,7 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction): void =
   }
 
   if (error?.code === 11000) {
-    res.status(409).json({
-      message: 'Запись с таким значением уже существует',
-      keyPattern: error.keyPattern
-    })
+    res.status(409).json({ message: 'Запись с таким значением уже существует' })
     return
   }
 

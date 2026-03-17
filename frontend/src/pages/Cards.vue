@@ -15,6 +15,7 @@ import { cardsApi } from '@/api/cards';
 import { employeesApi } from '@/api/employees';
 import { carsApi } from '@/api/cars';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import { filterData } from '@/utils/filter';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import type { Card, Employee, Car } from '@/types';
@@ -76,8 +77,8 @@ const handleBulkStatusSave = async () => {
 		clearSelection();
 		showBulkStatusModal.value = false;
 		await fetchCards();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка изменения статуса');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	}
 };
 
@@ -93,8 +94,8 @@ const bulkDelete = () => {
 				toast.success(`Удалено ${count} карт`);
 				clearSelection();
 				await fetchCards();
-			} catch (error: any) {
-				toast.error(error?.response?.data?.message || 'Ошибка удаления');
+			} catch (error: unknown) {
+				toast.error(getApiErrorMessage(error));
 			}
 		},
 	});
@@ -196,11 +197,11 @@ const tableActions = [
 		label: 'Редактировать',
 		handler: (row: Card) => {
 			editingCard.value = row;
-			const r = row as any;
+			const r = row as Card & { assigned_to?: string | { _id?: string }; assigned_car?: string | { _id?: string } };
 			formData.value = {
 				...row,
-				assigned_to: r.assigned_to?._id ?? r.assigned_to ?? '',
-				assigned_car: r.assigned_car?._id ?? r.assigned_car ?? '',
+				assigned_to: (typeof r.assigned_to === 'object' && r.assigned_to && '_id' in r.assigned_to ? r.assigned_to._id : r.assigned_to) ?? '',
+				assigned_car: (typeof r.assigned_car === 'object' && r.assigned_car && '_id' in r.assigned_car ? r.assigned_car._id : r.assigned_car) ?? '',
 			};
 			showModal.value = true;
 		},
@@ -216,8 +217,8 @@ const tableActions = [
 						await cardsApi.delete(row._id);
 						toast.success('Карта успешно удалена');
 						await fetchCards();
-					} catch (error: any) {
-						toast.error(error?.response?.data?.message || 'Ошибка удаления карты');
+					} catch (error: unknown) {
+						toast.error(getApiErrorMessage(error));
 					}
 				},
 			});
@@ -307,11 +308,11 @@ onMounted(async () => {
 		const cardItem = cards.value.find((c) => c._id === editId);
 		if (cardItem) {
 			editingCard.value = cardItem;
-			const c = cardItem as any;
+			const c = cardItem as Card & { assigned_to?: string | { _id?: string }; assigned_car?: string | { _id?: string } };
 			formData.value = {
 				...cardItem,
-				assigned_to: c.assigned_to?._id ?? c.assigned_to ?? '',
-				assigned_car: c.assigned_car?._id ?? c.assigned_car ?? '',
+				assigned_to: (typeof c.assigned_to === 'object' && c.assigned_to && '_id' in c.assigned_to ? c.assigned_to._id : c.assigned_to) ?? '',
+				assigned_car: (typeof c.assigned_car === 'object' && c.assigned_car && '_id' in c.assigned_car ? c.assigned_car._id : c.assigned_car) ?? '',
 			};
 			showModal.value = true;
 		}

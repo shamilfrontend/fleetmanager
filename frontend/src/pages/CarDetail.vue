@@ -14,6 +14,7 @@ import { maintenanceApi, type MaintenanceHistory } from '@/api/maintenance';
 import { formatDate, formatCurrency, formatNumber } from '@/utils/helpers';
 import { API_ORIGIN } from '@/utils/constants';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import type { Car, Employee, Card } from '@/types';
 
 const route = useRoute();
@@ -121,8 +122,8 @@ const deleteCar = () => {
 				await carsApi.delete(carId);
 				toast.success('Автомобиль удалён');
 				router.push({ name: 'Cars' });
-			} catch (e: any) {
-				toast.error(e?.response?.data?.message || 'Ошибка удаления');
+			} catch (e: unknown) {
+				toast.error(getApiErrorMessage(e));
 			}
 		},
 	});
@@ -171,8 +172,8 @@ const loadCarData = async () => {
 		} catch (e) {
 			console.error('Ошибка загрузки карт:', e);
 		}
-	} catch (err: any) {
-		error.value = err?.response?.data?.message || 'Ошибка загрузки данных автомобиля';
+	} catch (err: unknown) {
+		error.value = getApiErrorMessage(err);
 		console.error('Ошибка загрузки данных:', err);
 	} finally {
 		loading.value = false;
@@ -200,8 +201,8 @@ const handlePhotoUpload = async () => {
 		showPhotoUpload.value = false;
 		selectedPhotoFile.value = null;
 		if (photoInput.value) photoInput.value.value = '';
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка загрузки фотографии');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	} finally {
 		uploadingPhoto.value = false;
 	}
@@ -218,8 +219,8 @@ const handleDocumentUpload = async () => {
 		showDocumentUpload.value = false;
 		selectedDocumentFile.value = null;
 		if (documentInput.value) documentInput.value.value = '';
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка загрузки документа');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	} finally {
 		uploadingDocument.value = false;
 	}
@@ -234,8 +235,8 @@ const deletePhoto = (photoPath: string) => {
 				await carsApi.deletePhoto(carId, photoPath);
 				if (car.value) car.value.photos = car.value.photos?.filter((p) => p !== photoPath) || [];
 				toast.success('Фотография удалена');
-			} catch (error: any) {
-				toast.error(error?.response?.data?.message || 'Ошибка удаления фотографии');
+			} catch (error: unknown) {
+				toast.error(getApiErrorMessage(error));
 			}
 		},
 	});
@@ -250,8 +251,8 @@ const deleteDocument = (documentPath: string) => {
 				await carsApi.deleteDocument(carId, documentPath);
 				if (car.value) car.value.documents = car.value.documents?.filter((d) => d !== documentPath) || [];
 				toast.success('Документ удален');
-			} catch (error: any) {
-				toast.error(error?.response?.data?.message || 'Ошибка удаления документа');
+			} catch (error: unknown) {
+				toast.error(getApiErrorMessage(error));
 			}
 		},
 	});
@@ -301,8 +302,8 @@ const handleSaveMaintenance = async () => {
 			next_service_mileage: undefined,
 			service_provider: '',
 		};
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка добавления записи ТО');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	}
 };
 

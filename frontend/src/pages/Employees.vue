@@ -14,6 +14,7 @@ import { useEmployeesStore } from '@/stores/employees';
 import { useAuthStore } from '@/stores/auth';
 import { employeesApi } from '@/api/employees';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import { filterData } from '@/utils/filter';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import type { Employee } from '@/types';
@@ -128,8 +129,8 @@ const handleBulkStatusSave = async () => {
 		clearSelection();
 		showBulkStatusModal.value = false;
 		await fetchEmployeesPage();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка изменения статуса');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	}
 };
 
@@ -145,8 +146,8 @@ const bulkDelete = () => {
 				toast.success(`Удалено ${count} сотрудников`);
 				clearSelection();
 				await fetchEmployeesPage();
-			} catch (error: any) {
-				toast.error(error?.response?.data?.message || 'Ошибка удаления');
+			} catch (error: unknown) {
+				toast.error(getApiErrorMessage(error));
 			}
 		},
 	});
@@ -205,8 +206,8 @@ const tableActions = [
 						await employeesStore.deleteEmployee(row._id);
 						toast.success('Сотрудник успешно удален');
 						await fetchEmployeesPage();
-					} catch (error: any) {
-						toast.error(error?.response?.data?.message || 'Ошибка удаления сотрудника');
+					} catch (error: unknown) {
+						toast.error(getApiErrorMessage(error));
 					}
 				},
 			});
@@ -226,8 +227,8 @@ const handleSave = async () => {
 		resetForm();
 		showModal.value = false;
 		await fetchEmployeesPage();
-	} catch (error: any) {
-		toast.error(error?.response?.data?.message || 'Ошибка сохранения сотрудника');
+	} catch (error: unknown) {
+		toast.error(getApiErrorMessage(error));
 	}
 };
 

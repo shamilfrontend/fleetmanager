@@ -1,4 +1,4 @@
-export const filterData = <T extends Record<string, any>>(
+export const filterData = <T extends Record<string, unknown>>(
 	data: T[],
 	searchQuery: string,
 	searchFields: (keyof T)[],

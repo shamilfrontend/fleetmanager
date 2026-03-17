@@ -8,6 +8,7 @@ import Breadcrumbs from '@/components/common/Breadcrumbs.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { formatCurrency } from '@/utils/helpers';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import type { Card } from '@/types';
 
 const route = useRoute();
@@ -79,8 +80,8 @@ const loadCard = async () => {
 	error.value = '';
 	try {
 		card.value = await cardsApi.getById(id);
-	} catch (e: any) {
-		error.value = e?.response?.data?.message || 'Не удалось загрузить данные';
+	} catch (e: unknown) {
+		error.value = getApiErrorMessage(e);
 		card.value = null;
 	} finally {
 		loading.value = false;
@@ -104,8 +105,8 @@ const deleteCard = () => {
 				await cardsApi.delete(id);
 				toast.success('Карта удалена');
 				router.push({ name: 'Cards' });
-			} catch (e: any) {
-				toast.error(e?.response?.data?.message || 'Ошибка удаления');
+			} catch (e: unknown) {
+				toast.error(getApiErrorMessage(e));
 			}
 		},
 	});

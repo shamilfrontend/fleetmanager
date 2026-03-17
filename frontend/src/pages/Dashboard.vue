@@ -16,7 +16,7 @@ import { useCarsStore } from '@/stores/cars';
 import { useEmployeesStore } from '@/stores/employees';
 import { useAuthStore } from '@/stores/auth';
 import type {
-	Transaction, Car, Employee, PaginatedResponse,
+	Transaction, Car, Employee, Card, PaginatedResponse,
 } from '@/types';
 import { chartColors } from '@/theme/colors';
 
@@ -48,7 +48,7 @@ const recentTransactions = ref<Transaction[]>([]);
 const allTransactions = ref<Transaction[]>([]);
 const allCars = ref<Car[]>([]);
 const allEmployees = ref<Employee[]>([]);
-const allCards = ref<any[]>([]);
+const allCards = ref<Card[]>([]);
 const upcomingMaintenance = ref<UpcomingMaintenance[]>([]);
 const loading = ref(true);
 
@@ -114,7 +114,7 @@ const monthlyExpensesData = computed(() => {
 
 const topDriversData = computed(() => {
 	const driverExpenses = allTransactions.value.reduce((acc, t) => {
-		const empId = typeof t.employee_id === 'string' ? t.employee_id : (t.employee_id as any)?._id || '';
+		const empId = typeof t.employee_id === 'string' ? t.employee_id : (t.employee_id as { _id?: string })?._id ?? '';
 		const emp = allEmployees.value.find((e) => e._id === empId);
 		if (emp && t.status === 'completed') {
 			acc[emp.full_name] = (acc[emp.full_name] || 0) + t.amount;
@@ -240,9 +240,9 @@ const loadDashboardData = async () => {
 		stats.value.employees = employeesList.length;
 		stats.value.activeEmployees = employeesList.filter((e: Employee) => e.status === 'active').length;
 		stats.value.cards = cardsList.length;
-		stats.value.balance = cardsList.reduce((sum: number, card: any) => sum + (card.balance || 0), 0);
+		stats.value.balance = cardsList.reduce((sum: number, card: Card) => sum + (card.balance ?? 0), 0);
 		stats.value.avgBalance = cardsList.length > 0
-			? cardsList.reduce((sum: number, card: any) => sum + (card.balance || 0), 0) / cardsList.length
+			? cardsList.reduce((sum: number, card: Card) => sum + (card.balance ?? 0), 0) / cardsList.length
 			: 0;
 
 		// Расходы за текущий месяц
@@ -259,7 +259,7 @@ const loadDashboardData = async () => {
 
 		// Последние транзакции
 		recentTransactions.value = transactionsList
-			.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+			.sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime())
 			.slice(0, 10);
 
 		// Обновляем stores
