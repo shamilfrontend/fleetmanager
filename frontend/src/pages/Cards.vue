@@ -11,6 +11,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import SearchInput from '@/components/common/SearchInput.vue';
 import Pagination from '@/components/common/Pagination.vue';
 import FormField from '@/components/common/FormField.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 import { useAuthStore } from '@/stores/auth';
 import { cardsApi } from '@/api/cards';
 import { employeesApi } from '@/api/employees';
@@ -49,6 +50,36 @@ const bulkProgress = ref({ done: 0, total: 0 });
 const bulkSaving = ref(false);
 
 const BULK_BATCH_SIZE = 8;
+
+// Опции для селектов
+const cardTypeOptions = [
+	{ value: 'fuel', label: 'Топливная' },
+	{ value: 'service', label: 'Сервисная' },
+];
+const cardStatusOptions = [
+	{ value: 'active', label: 'Активна' },
+	{ value: 'blocked', label: 'Заблокирована' },
+	{ value: 'expired', label: 'Истекла' },
+];
+const filterStatusOptions = [
+	{ value: '', label: 'Все' },
+	...cardStatusOptions,
+];
+const filterTypeOptions = [
+	{ value: '', label: 'Все' },
+	...cardTypeOptions,
+];
+const employeeOptions = computed(() => [
+	{ value: undefined, label: 'Не привязана' },
+	...employees.value.map((e) => ({ value: e._id, label: `${e.full_name} (${e.position})` })),
+]);
+const carOptions = computed(() => [
+	{ value: undefined, label: 'Не привязана' },
+	...cars.value.map((c) => ({
+		value: c._id,
+		label: `${c.brand} ${c.model} (${c.plate_number})`,
+	})),
+]);
 
 // Сервер уже фильтрует по статусу и типу, здесь оставляем только поиск по номеру
 const filteredCards = computed(() => filterData(cards.value, searchQuery.value, ['card_number']));
@@ -369,20 +400,19 @@ onMounted(async () => {
 					</div>
 					<div class="form-group">
 						<label>Статус</label>
-						<select v-model="filters.status" class="form-input">
-							<option value="">Все</option>
-							<option value="active">Активна</option>
-							<option value="blocked">Заблокирована</option>
-							<option value="expired">Истекла</option>
-						</select>
+						<AppSelect
+							v-model="filters.status"
+							:options="filterStatusOptions"
+							placeholder="Все"
+						/>
 					</div>
 					<div class="form-group">
 						<label>Тип</label>
-						<select v-model="filters.type" class="form-input">
-							<option value="">Все</option>
-							<option value="fuel">Топливная</option>
-							<option value="service">Сервисная</option>
-						</select>
+						<AppSelect
+							v-model="filters.type"
+							:options="filterTypeOptions"
+							placeholder="Все"
+						/>
 					</div>
 				</div>
 				<div class="filters-actions">
@@ -452,10 +482,12 @@ onMounted(async () => {
 					<input id="card-card_number" v-model="formData.card_number" required class="form-input" />
 				</FormField>
 				<FormField label="Тип" required field-id="card-type">
-					<select id="card-type" v-model="formData.type" required class="form-input">
-						<option value="fuel">Топливная</option>
-						<option value="service">Сервисная</option>
-					</select>
+					<AppSelect
+						field-id="card-type"
+						v-model="formData.type"
+						:options="cardTypeOptions"
+						placeholder="Выберите тип"
+					/>
 				</FormField>
 				<FormField label="Баланс" required field-id="card-balance">
 					<input id="card-balance" v-model.number="formData.balance" type="number" required class="form-input" />
@@ -464,27 +496,32 @@ onMounted(async () => {
 					<input id="card-limit" v-model.number="formData.limit" type="number" required class="form-input" />
 				</FormField>
 				<FormField label="Статус" required field-id="card-status">
-					<select id="card-status" v-model="formData.status" required class="form-input">
-						<option value="active">Активна</option>
-						<option value="blocked">Заблокирована</option>
-						<option value="expired">Истекла</option>
-					</select>
+					<AppSelect
+						field-id="card-status"
+						v-model="formData.status"
+						:options="cardStatusOptions"
+						placeholder="Выберите статус"
+					/>
 				</FormField>
 				<FormField label="Привязать к сотруднику" field-id="card-assigned_to">
-					<select id="card-assigned_to" v-model="formData.assigned_to" class="form-input">
-						<option :value="undefined">Не привязана</option>
-						<option v-for="emp in employees" :key="emp._id" :value="emp._id">
-							{{ emp.full_name }} ({{ emp.position }})
-						</option>
-					</select>
+					<AppSelect
+						field-id="card-assigned_to"
+						v-model="formData.assigned_to"
+						:options="employeeOptions"
+						placeholder="Не привязана"
+						clearable
+						searchable
+					/>
 				</FormField>
 				<FormField label="Привязать к автомобилю" field-id="card-assigned_car">
-					<select id="card-assigned_car" v-model="formData.assigned_car" class="form-input">
-						<option :value="undefined">Не привязана</option>
-						<option v-for="car in cars" :key="car._id" :value="car._id">
-							{{ car.brand }} {{ car.model }} ({{ car.plate_number }})
-						</option>
-					</select>
+					<AppSelect
+						field-id="card-assigned_car"
+						v-model="formData.assigned_car"
+						:options="carOptions"
+						placeholder="Не привязана"
+						clearable
+						searchable
+					/>
 				</FormField>
 				<FormField v-if="formData.expiry_date !== undefined" label="Срок действия" field-id="card-expiry_date">
 					<input id="card-expiry_date" v-model="formData.expiry_date" type="date" class="form-input" />
@@ -502,11 +539,12 @@ onMounted(async () => {
 		>
 			<form class="bulk-status-form">
 				<FormField label="Новый статус" required field-id="card-bulk-status">
-					<select id="card-bulk-status" v-model="bulkStatusForm.status" class="form-input" required>
-						<option value="active">Активна</option>
-						<option value="blocked">Заблокирована</option>
-						<option value="expired">Истекла</option>
-					</select>
+					<AppSelect
+						field-id="card-bulk-status"
+						v-model="bulkStatusForm.status"
+						:options="cardStatusOptions"
+						placeholder="Выберите статус"
+					/>
 				</FormField>
 				<p class="form-hint">
 					Будет изменен статус для {{ selectedCards.length }} карт

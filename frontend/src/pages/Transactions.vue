@@ -10,6 +10,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import Pagination from '@/components/common/Pagination.vue';
 import SearchInput from '@/components/common/SearchInput.vue';
 import FormField from '@/components/common/FormField.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 import { transactionsApi, type TransactionFilters } from '@/api/transactions';
 import { employeesApi } from '@/api/employees';
 import { carsApi } from '@/api/cars';
@@ -49,6 +50,47 @@ const showBulkStatusModal = ref(false);
 const bulkStatusForm = ref({
 	status: 'completed',
 });
+
+// Опции для селектов формы и фильтров
+const cardOptions = computed(() =>
+	cards.value.map((c) => ({
+		value: c._id,
+		label: `${c.card_number} (${c.type === 'fuel' ? 'Топливная' : 'Сервисная'})`,
+	})));
+const employeeOptions = computed(() =>
+	employees.value.map((e) => ({ value: e._id, label: e.full_name })));
+const carOptions = computed(() =>
+	cars.value.map((c) => ({
+		value: c._id,
+		label: `${c.brand} ${c.model} (${c.plate_number})`,
+	})));
+const filterEmployeeOptions = computed(() => [
+	{ value: '', label: 'Все' },
+	...employeeOptions.value,
+]);
+const filterCarOptions = computed(() => [
+	{ value: '', label: 'Все' },
+	...carOptions.value,
+]);
+const filterCardOptions = computed(() => [
+	{ value: '', label: 'Все' },
+	...cardOptions.value,
+]);
+const fuelTypeOptions = [
+	{ value: 'АИ-95', label: 'АИ-95' },
+	{ value: 'АИ-92', label: 'АИ-92' },
+	{ value: 'Дизель', label: 'Дизель' },
+	{ value: 'Газ', label: 'Газ' },
+];
+const statusOptions = [
+	{ value: 'completed', label: 'Завершена' },
+	{ value: 'pending', label: 'В ожидании' },
+	{ value: 'cancelled', label: 'Отменена' },
+];
+const filterStatusOptions = [
+	{ value: '', label: 'Все' },
+	...statusOptions,
+];
 
 // Сервер фильтрует по статусу, сотруднику, авто, карте и датам.
 // Здесь оставляем только текстовый поиск по уже полученной странице.
@@ -334,39 +376,38 @@ const loadFormData = async () => {
 				</div>
 				<div class="form-group">
 					<label>Сотрудник</label>
-					<select v-model="filters.employeeId" class="form-input">
-						<option value="">Все</option>
-						<option v-for="emp in employees" :key="emp._id" :value="emp._id">
-							{{ emp.full_name }}
-						</option>
-					</select>
+					<AppSelect
+						v-model="filters.employeeId"
+						:options="filterEmployeeOptions"
+						placeholder="Все"
+						searchable
+					/>
 				</div>
 				<div class="form-group">
 					<label>Автомобиль</label>
-					<select v-model="filters.carId" class="form-input">
-						<option value="">Все</option>
-						<option v-for="car in cars" :key="car._id" :value="car._id">
-							{{ car.brand }} {{ car.model }} ({{ car.plate_number }})
-						</option>
-					</select>
+					<AppSelect
+						v-model="filters.carId"
+						:options="filterCarOptions"
+						placeholder="Все"
+						searchable
+					/>
 				</div>
 				<div class="form-group">
 					<label>Карта</label>
-					<select v-model="filters.cardId" class="form-input">
-						<option value="">Все</option>
-						<option v-for="card in cards" :key="card._id" :value="card._id">
-							{{ card.card_number }}
-						</option>
-					</select>
+					<AppSelect
+						v-model="filters.cardId"
+						:options="filterCardOptions"
+						placeholder="Все"
+						searchable
+					/>
 				</div>
 				<div class="form-group">
 					<label>Статус</label>
-					<select v-model="filters.status" class="form-input">
-						<option value="">Все</option>
-						<option value="completed">Завершена</option>
-						<option value="pending">В ожидании</option>
-						<option value="cancelled">Отменена</option>
-					</select>
+					<AppSelect
+						v-model="filters.status"
+						:options="filterStatusOptions"
+						placeholder="Все"
+					/>
 				</div>
 			</div>
 			<div class="filters-actions">
@@ -432,11 +473,12 @@ const loadFormData = async () => {
 		>
 			<form class="bulk-status-form">
 				<FormField label="Новый статус" required field-id="tx-bulk-status">
-					<select id="tx-bulk-status" v-model="bulkStatusForm.status" class="form-input" required>
-						<option value="completed">Завершена</option>
-						<option value="pending">В ожидании</option>
-						<option value="cancelled">Отменена</option>
-					</select>
+					<AppSelect
+						field-id="tx-bulk-status"
+						v-model="bulkStatusForm.status"
+						:options="statusOptions"
+						placeholder="Выберите статус"
+					/>
 				</FormField>
 				<p class="form-hint">
 					Будет изменен статус для {{ selectedTransactions.length }} транзакций
@@ -452,28 +494,31 @@ const loadFormData = async () => {
 		>
 			<form class="transaction-form">
 				<FormField label="Карта" required field-id="tx-card_id">
-					<select id="tx-card_id" v-model="formData.card_id" required class="form-input">
-						<option value="">Выберите карту</option>
-						<option v-for="card in cards" :key="card._id" :value="card._id">
-							{{ card.card_number }} ({{ card.type === 'fuel' ? 'Топливная' : 'Сервисная' }})
-						</option>
-					</select>
+					<AppSelect
+						field-id="tx-card_id"
+						v-model="formData.card_id"
+						:options="cardOptions"
+						placeholder="Выберите карту"
+						searchable
+					/>
 				</FormField>
 				<FormField label="Сотрудник" required field-id="tx-employee_id">
-					<select id="tx-employee_id" v-model="formData.employee_id" required class="form-input">
-						<option value="">Выберите сотрудника</option>
-						<option v-for="emp in employees" :key="emp._id" :value="emp._id">
-							{{ emp.full_name }}
-						</option>
-					</select>
+					<AppSelect
+						field-id="tx-employee_id"
+						v-model="formData.employee_id"
+						:options="employeeOptions"
+						placeholder="Выберите сотрудника"
+						searchable
+					/>
 				</FormField>
 				<FormField label="Автомобиль" required field-id="tx-car_id">
-					<select id="tx-car_id" v-model="formData.car_id" required class="form-input">
-						<option value="">Выберите автомобиль</option>
-						<option v-for="car in cars" :key="car._id" :value="car._id">
-							{{ car.brand }} {{ car.model }} ({{ car.plate_number }})
-						</option>
-					</select>
+					<AppSelect
+						field-id="tx-car_id"
+						v-model="formData.car_id"
+						:options="carOptions"
+						placeholder="Выберите автомобиль"
+						searchable
+					/>
 				</FormField>
 				<FormField label="Сумма" required field-id="tx-amount">
 					<input id="tx-amount" v-model.number="formData.amount" type="number" step="0.01" required class="form-input" />
@@ -482,13 +527,12 @@ const loadFormData = async () => {
 					<input id="tx-volume" v-model.number="formData.volume" type="number" step="0.01" required class="form-input" />
 				</FormField>
 				<FormField label="Тип топлива" required field-id="tx-fuel_type">
-					<select id="tx-fuel_type" v-model="formData.fuel_type" required class="form-input">
-						<option value="">Выберите тип</option>
-						<option value="АИ-95">АИ-95</option>
-						<option value="АИ-92">АИ-92</option>
-						<option value="Дизель">Дизель</option>
-						<option value="Газ">Газ</option>
-					</select>
+					<AppSelect
+						field-id="tx-fuel_type"
+						v-model="formData.fuel_type"
+						:options="fuelTypeOptions"
+						placeholder="Выберите тип"
+					/>
 				</FormField>
 				<FormField label="Место" required field-id="tx-location">
 					<input id="tx-location" v-model="formData.location" required class="form-input" />
@@ -500,11 +544,12 @@ const loadFormData = async () => {
 					<input id="tx-date" v-model="formData.date" type="datetime-local" required class="form-input" />
 				</FormField>
 				<FormField label="Статус" required field-id="tx-status">
-					<select id="tx-status" v-model="formData.status" required class="form-input">
-						<option value="completed">Завершена</option>
-						<option value="pending">В ожидании</option>
-						<option value="cancelled">Отменена</option>
-					</select>
+					<AppSelect
+						field-id="tx-status"
+						v-model="formData.status"
+						:options="statusOptions"
+						placeholder="Выберите статус"
+					/>
 				</FormField>
 			</form>
 		</Modal>

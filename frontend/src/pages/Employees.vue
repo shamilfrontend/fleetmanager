@@ -11,6 +11,7 @@ import Modal from '@/components/common/Modal.vue';
 import SearchInput from '@/components/common/SearchInput.vue';
 import Pagination from '@/components/common/Pagination.vue';
 import FormField from '@/components/common/FormField.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 import { useEmployeesStore } from '@/stores/employees';
 import { useAuthStore } from '@/stores/auth';
 import { employeesApi } from '@/api/employees';
@@ -58,6 +59,19 @@ const departments = computed(() => {
 	});
 	return Array.from(depts).sort();
 });
+
+const employeeStatusOptions = [
+	{ value: 'active', label: 'Активен' },
+	{ value: 'inactive', label: 'Неактивен' },
+];
+const filterStatusOptions = [
+	{ value: '', label: 'Все' },
+	...employeeStatusOptions,
+];
+const filterDepartmentOptions = computed(() => [
+	{ value: '', label: 'Все отделы' },
+	...departments.value.map((d) => ({ value: d, label: d })),
+]);
 
 const filteredEmployees = computed(() => {
 	let filtered = filterData(employeesStore.employees, searchQuery.value, ['full_name', 'position', 'department', 'phone']);
@@ -320,18 +334,20 @@ onMounted(async () => {
 					</div>
 					<div class="form-group">
 						<label>Статус</label>
-						<select v-model="filters.status" class="form-input">
-							<option value="">Все</option>
-							<option value="active">Активен</option>
-							<option value="inactive">Неактивен</option>
-						</select>
+						<AppSelect
+							v-model="filters.status"
+							:options="filterStatusOptions"
+							placeholder="Все"
+						/>
 					</div>
 					<div class="form-group">
 						<label>Отдел</label>
-						<select v-model="filters.department" class="form-input">
-							<option value="">Все отделы</option>
-							<option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
-						</select>
+						<AppSelect
+							v-model="filters.department"
+							:options="filterDepartmentOptions"
+							placeholder="Все отделы"
+							searchable
+						/>
 					</div>
 				</div>
 				<div class="filters-actions">
@@ -407,10 +423,12 @@ onMounted(async () => {
 					<input id="employee-hire_date" v-model="formData.hire_date" type="date" required class="form-input" />
 				</FormField>
 				<FormField label="Статус" required field-id="employee-status">
-					<select id="employee-status" v-model="formData.status" required class="form-input">
-						<option value="active">Активен</option>
-						<option value="inactive">Неактивен</option>
-					</select>
+					<AppSelect
+						field-id="employee-status"
+						v-model="formData.status"
+						:options="employeeStatusOptions"
+						placeholder="Выберите статус"
+					/>
 				</FormField>
 			</form>
 		</Modal>
@@ -425,10 +443,12 @@ onMounted(async () => {
 		>
 			<form class="bulk-status-form">
 				<FormField label="Новый статус" required field-id="employee-bulk-status">
-					<select id="employee-bulk-status" v-model="bulkStatusForm.status" class="form-input" required>
-						<option value="active">Активен</option>
-						<option value="inactive">Неактивен</option>
-					</select>
+					<AppSelect
+						field-id="employee-bulk-status"
+						v-model="bulkStatusForm.status"
+						:options="employeeStatusOptions"
+						placeholder="Выберите статус"
+					/>
 				</FormField>
 				<p class="form-hint">
 					Будет изменен статус для {{ selectedEmployees.length }} сотрудников

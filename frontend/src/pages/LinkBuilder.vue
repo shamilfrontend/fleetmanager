@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref } from 'vue';
 
 import AppButton from '@/components/common/AppButton.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
+import type { SelectOption } from '@/components/common/AppSelect.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { employeesApi } from '@/api/employees';
 import { cardsApi } from '@/api/cards';
 import { carsApi } from '@/api/cars';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
-import type { Employee, Card, Car } from '@/types';
 
 interface PendingChange {
 	type: 'assign' | 'unassign'
@@ -19,11 +20,7 @@ interface PendingChange {
 	targetType: 'employee' | 'card' | 'car'
 }
 
-const loading = ref(false);
 const saving = ref(false);
-const employees = ref<Employee[]>([]);
-const cards = ref<Card[]>([]);
-const cars = ref<Car[]>([]);
 
 // Быстрая форма создания связи
 const selectedCardId = ref<string>('');
@@ -33,10 +30,31 @@ const selectedCarId = ref<string>('');
 const pendingChanges = ref<PendingChange[]>([]);
 const confirm = useConfirm();
 
-// Источники данных для быстрой формы (пока без сложных ограничений)
-const availableEmployeesForForm = computed(() => employees.value);
-const availableCardsForForm = computed(() => cards.value);
-const availableCarsForForm = computed(() => cars.value);
+// Подгрузка опций для селектов (infinite scroll)
+const loadCardOptions = async (params: { page: number; limit: number }): Promise<{ options: SelectOption[]; total: number }> => {
+	const res = await cardsApi.getAll({ page: params.page, limit: params.limit });
+	return {
+		options: res.data.map((c) => ({ value: c._id, label: c.card_number })),
+		total: res.total,
+	};
+};
+const loadEmployeeOptions = async (params: { page: number; limit: number }): Promise<{ options: SelectOption[]; total: number }> => {
+	const res = await employeesApi.getAll({ page: params.page, limit: params.limit });
+	return {
+		options: res.data.map((e) => ({ value: e._id, label: e.full_name })),
+		total: res.total,
+	};
+};
+const loadCarOptions = async (params: { page: number; limit: number }): Promise<{ options: SelectOption[]; total: number }> => {
+	const res = await carsApi.getAll({ page: params.page, limit: params.limit });
+	return {
+		options: res.data.map((c) => ({
+			value: c._id,
+			label: `${c.brand} ${c.model} (${c.plate_number})`,
+		})),
+		total: res.total,
+	};
+};
 
 const queueAssignLink = (
 	linkType: 'employee-card' | 'employee-car' | 'card-car',
@@ -121,16 +139,13 @@ const createLinkFromForm = () => {
 
 const resetView = () => {
 	if (pendingChanges.value.length > 0) {
-		confirm.openConfirm('В очереди есть несохранённые изменения. Сбросить очередь и обновить данные?', {
+		confirm.openConfirm('В очереди есть несохранённые изменения. Сбросить очередь?', {
 			title: 'Сбросить изменения?',
 			confirmLabel: 'Сбросить',
 			onConfirm: () => {
 				pendingChanges.value = [];
-				loadData();
 			},
 		});
-	} else {
-		loadData();
 	}
 };
 
@@ -148,7 +163,6 @@ const saveChanges = async () => {
 
 		toast.success('Изменения успешно сохранены');
 		pendingChanges.value = [];
-		await loadData();
 	} catch (error: unknown) {
 		toast.error(getApiErrorMessage(error));
 	} finally {
@@ -164,17 +178,15 @@ const applyChange = async (change: PendingChange) => {
 				cardsApi.update(change.targetId, { assigned_to: change.sourceId }),
 			]);
 		} else if (change.linkType === 'employee-car') {
-			const employee = employees.value.find((e) => e._id === change.sourceId);
-			if (employee) {
-				const currentCars = employee.assigned_cars || [];
-				if (!currentCars.includes(change.targetId)) {
-					await Promise.all([
-						employeesApi.update(change.sourceId, {
-							assigned_cars: [...currentCars, change.targetId],
-						}),
-						carsApi.update(change.targetId, { assigned_to: change.sourceId }),
-					]);
-				}
+			const employee = await employeesApi.getById(change.sourceId);
+			const currentCars = employee.assigned_cars || [];
+			if (!currentCars.includes(change.targetId)) {
+				await Promise.all([
+					employeesApi.update(change.sourceId, {
+						assigned_cars: [...currentCars, change.targetId],
+					}),
+					carsApi.update(change.targetId, { assigned_to: change.sourceId }),
+				]);
 			}
 		} else if (change.linkType === 'card-car') {
 			await cardsApi.update(change.sourceId, { assigned_car: change.targetId });
@@ -186,43 +198,18 @@ const applyChange = async (change: PendingChange) => {
 				cardsApi.update(change.targetId, { assigned_to: null } as Record<string, unknown>),
 			]);
 		} else if (change.linkType === 'employee-car') {
-			const employee = employees.value.find((e) => e._id === change.sourceId);
-			if (employee) {
-				const currentCars = employee.assigned_cars || [];
-				const nextCars = currentCars.filter((id: string) => id !== change.targetId);
-				await Promise.all([
-					employeesApi.update(change.sourceId, { assigned_cars: nextCars }),
-					carsApi.update(change.targetId, { assigned_to: null } as Record<string, unknown>),
-				]);
-			}
+			const employee = await employeesApi.getById(change.sourceId);
+			const currentCars = employee.assigned_cars || [];
+			const nextCars = currentCars.filter((id: string) => id !== change.targetId);
+			await Promise.all([
+				employeesApi.update(change.sourceId, { assigned_cars: nextCars }),
+				carsApi.update(change.targetId, { assigned_to: null } as Record<string, unknown>),
+			]);
 		} else if (change.linkType === 'card-car') {
 			await cardsApi.update(change.sourceId, { assigned_car: null } as Record<string, unknown>);
 		}
 	}
 };
-
-const loadData = async () => {
-	loading.value = true;
-	try {
-		const [empRes, cardRes, carRes] = await Promise.all([
-			employeesApi.getAll(),
-			cardsApi.getAll(),
-			carsApi.getAll(),
-		]);
-		employees.value = empRes.data;
-		cards.value = cardRes.data;
-		cars.value = carRes.data;
-	} catch (error) {
-		console.error('Ошибка загрузки данных:', error);
-		toast.error('Ошибка загрузки данных');
-	} finally {
-		loading.value = false;
-	}
-};
-
-onMounted(() => {
-	loadData();
-});
 </script>
 
 <template>
@@ -237,86 +224,62 @@ onMounted(() => {
 			</div>
 		</div>
 
-		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка данных...</div>
-		<template v-else>
-			<!-- Быстрая форма создания связи -->
-			<div class="quick-link-builder card">
-				<div class="quick-link-header">
-					<h2>Создать связь</h2>
-					<p class="quick-link-subtitle">
-						Выберите карту, сотрудника и автомобиль для создания связи между ними.
-						Изменения будут применены после нажатия кнопки «Сохранить изменения».
-					</p>
-				</div>
-				<div class="quick-link-layout">
-					<div class="quick-link-node">
-						<div class="quick-link-node-header">
-							<span class="quick-link-icon">💳</span>
-							<span class="quick-link-title">Карта</span>
-						</div>
-						<select
-							v-model="selectedCardId"
-							class="quick-link-select"
-						>
-							<option value="">Выберите карту</option>
-							<option
-								v-for="card in availableCardsForForm"
-								:key="card._id"
-								:value="card._id"
-							>
-								{{ card.card_number }}
-							</option>
-						</select>
+		<!-- Быстрая форма создания связи -->
+		<div class="quick-link-builder card">
+			<div class="quick-link-header">
+				<h2>Создать связь</h2>
+				<p class="quick-link-subtitle">
+					Выберите карту, сотрудника и автомобиль для создания связи между ними.
+					Изменения будут применены после нажатия кнопки «Сохранить изменения».
+				</p>
+			</div>
+			<div class="quick-link-layout">
+				<div class="quick-link-node">
+					<div class="quick-link-node-header">
+						<span class="quick-link-icon">💳</span>
+						<span class="quick-link-title">Карта</span>
 					</div>
-
-					<div class="quick-link-node">
-						<div class="quick-link-node-header">
-							<span class="quick-link-icon">👤</span>
-							<span class="quick-link-title">Сотрудник</span>
-						</div>
-						<select
-							v-model="selectedEmployeeId"
-							class="quick-link-select"
-						>
-							<option value="">Выберите сотрудника</option>
-							<option
-								v-for="employee in availableEmployeesForForm"
-								:key="employee._id"
-								:value="employee._id"
-							>
-								{{ employee.full_name }}
-							</option>
-						</select>
-					</div>
-
-					<div class="quick-link-node">
-						<div class="quick-link-node-header">
-							<span class="quick-link-icon">🚗</span>
-							<span class="quick-link-title">Автомобиль</span>
-						</div>
-						<select
-							v-model="selectedCarId"
-							class="quick-link-select"
-						>
-							<option value="">Выберите автомобиль</option>
-							<option
-								v-for="car in availableCarsForForm"
-								:key="car._id"
-								:value="car._id"
-							>
-								{{ car.brand }} {{ car.model }} ({{ car.plate_number }})
-							</option>
-						</select>
-					</div>
+					<AppSelect
+						v-model="selectedCardId"
+						placeholder="Выберите карту"
+						searchable
+						:load-options="loadCardOptions"
+					/>
 				</div>
 
-				<div class="quick-link-actions">
-					<AppButton variant="primary" @click="createLinkFromForm">
-						Сохранить связь
-					</AppButton>
+				<div class="quick-link-node">
+					<div class="quick-link-node-header">
+						<span class="quick-link-icon">👤</span>
+						<span class="quick-link-title">Сотрудник</span>
+					</div>
+					<AppSelect
+						v-model="selectedEmployeeId"
+						placeholder="Выберите сотрудника"
+						searchable
+						:load-options="loadEmployeeOptions"
+					/>
+				</div>
+
+				<div class="quick-link-node">
+					<div class="quick-link-node-header">
+						<span class="quick-link-icon">🚗</span>
+						<span class="quick-link-title">Автомобиль</span>
+					</div>
+					<AppSelect
+						v-model="selectedCarId"
+						placeholder="Выберите автомобиль"
+						searchable
+						:load-options="loadCarOptions"
+					/>
 				</div>
 			</div>
-		</template>
+
+			<div class="quick-link-actions">
+				<AppButton variant="primary" @click="createLinkFromForm">
+					Сохранить связь
+				</AppButton>
+			</div>
+		</div>
 	</div>
 </template>
 

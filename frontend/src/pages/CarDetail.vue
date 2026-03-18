@@ -7,6 +7,7 @@ import Breadcrumbs from '@/components/common/Breadcrumbs.vue';
 import Modal from '@/components/common/Modal.vue';
 import Confirm from '@/components/common/Confirm.vue';
 import FormField from '@/components/common/FormField.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { carsApi } from '@/api/cars';
 import { employeesApi } from '@/api/employees';
@@ -16,8 +17,10 @@ import { formatDate, formatCurrency, formatNumber } from '@/utils/helpers';
 import { API_ORIGIN } from '@/utils/constants';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
-import { getCarStatusLabel, getServiceTypeLabel } from '@/utils/labels';
+import { getCarStatusLabel, getServiceTypeLabel, SERVICE_TYPE_LABELS } from '@/utils/labels';
 import type { Car, Employee, Card } from '@/types';
+
+const serviceTypeOptions = Object.entries(SERVICE_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 
 const route = useRoute();
 const router = useRouter();
@@ -614,14 +617,12 @@ onMounted(() => {
 		>
 			<form class="maintenance-form">
 				<FormField label="Тип обслуживания" required field-id="maint-service_type">
-					<select id="maint-service_type" v-model="maintenanceForm.service_type" required>
-						<option value="regular">Регулярное ТО</option>
-						<option value="repair">Ремонт</option>
-						<option value="inspection">Осмотр</option>
-						<option value="tire_change">Замена шин</option>
-						<option value="oil_change">Замена масла</option>
-						<option value="other">Другое</option>
-					</select>
+					<AppSelect
+						field-id="maint-service_type"
+						v-model="maintenanceForm.service_type"
+						:options="serviceTypeOptions"
+						placeholder="Выберите тип"
+					/>
 				</FormField>
 				<FormField label="Описание" required field-id="maint-description">
 					<textarea id="maint-description" v-model="maintenanceForm.description" required></textarea>

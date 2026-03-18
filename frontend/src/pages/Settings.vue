@@ -6,6 +6,7 @@ import { getApiErrorMessage } from '@/utils/apiError';
 import AppButton from '@/components/common/AppButton.vue';
 import Confirm from '@/components/common/Confirm.vue';
 import FormField from '@/components/common/FormField.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { authApi } from '@/api/auth';
 import { carsApi } from '@/api/cars';
@@ -21,6 +22,12 @@ const roleLabels: Record<string, string> = {
 	manager: 'Менеджер',
 	driver: 'Водитель',
 };
+
+const roleOptions = [
+	{ value: 'driver', label: 'Водитель' },
+	{ value: 'manager', label: 'Менеджер' },
+	{ value: 'admin', label: 'Администратор' },
+];
 
 const roleLabel = computed(() => roleLabels[authStore.user?.role || ''] || '');
 
@@ -277,11 +284,12 @@ const clearCache = () => {
 							/>
 						</FormField>
 						<FormField label="Роль" required field-id="settings-create-role">
-							<select id="settings-create-role" v-model="createUserForm.role" class="form-input">
-								<option value="driver">Водитель</option>
-								<option value="manager">Менеджер</option>
-								<option value="admin">Администратор</option>
-							</select>
+							<AppSelect
+								field-id="settings-create-role"
+								v-model="createUserForm.role"
+								:options="roleOptions"
+								placeholder="Выберите роль"
+							/>
 						</FormField>
 						<AppButton type="submit" variant="primary" class="create-user-form__submit" :disabled="creatingUser">
 							{{ creatingUser ? 'Создание...' : 'Создать' }}
@@ -303,16 +311,13 @@ const clearCache = () => {
 							<tr v-for="u in users" :key="u._id">
 								<td>{{ u.email }}</td>
 								<td>
-									<select
-										:value="u.role"
-										class="form-input form-input--inline"
+									<AppSelect
+										:model-value="u.role"
+										:options="roleOptions"
+										placeholder="Роль"
 										:disabled="updatingRoleId === u._id"
-										@change="handleRoleChange(u._id, ($event.target as HTMLSelectElement).value)"
-									>
-										<option value="driver">Водитель</option>
-										<option value="manager">Менеджер</option>
-										<option value="admin">Администратор</option>
-									</select>
+										@update:model-value="(role) => handleRoleChange(u._id, role)"
+									/>
 								</td>
 								<td>
 									<AppButton

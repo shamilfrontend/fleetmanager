@@ -11,6 +11,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import SearchInput from '@/components/common/SearchInput.vue';
 import Pagination from '@/components/common/Pagination.vue';
 import FormField from '@/components/common/FormField.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 import { useCarsStore } from '@/stores/cars';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
@@ -22,8 +23,15 @@ import { exportToCSV, exportToExcel } from '@/utils/export';
 import { maintenanceApi, type MaintenanceHistory } from '@/api/maintenance';
 import { formatDate, formatCurrency } from '@/utils/helpers';
 import { API_ORIGIN } from '@/utils/constants';
-import { getCarStatusLabel, getServiceTypeLabel } from '@/utils/labels';
+import { getCarStatusLabel, getServiceTypeLabel, CAR_STATUS_LABELS, SERVICE_TYPE_LABELS } from '@/utils/labels';
 import { carsApi } from '@/api/cars';
+
+const carStatusOptions = Object.entries(CAR_STATUS_LABELS).map(([value, label]) => ({ value, label }));
+const filterCarStatusOptions = [
+	{ value: '', label: 'Все' },
+	...carStatusOptions,
+];
+const serviceTypeOptions = Object.entries(SERVICE_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 import type { Car } from '@/types';
 
 const route = useRoute();
@@ -582,12 +590,11 @@ onMounted(async () => {
 					</div>
 					<div class="form-group">
 						<label>Статус</label>
-						<select v-model="filters.status" class="form-input">
-							<option value="">Все</option>
-							<option value="active">Активен</option>
-							<option value="repair">В ремонте</option>
-							<option value="reserve">Резерв</option>
-						</select>
+						<AppSelect
+							v-model="filters.status"
+							:options="filterCarStatusOptions"
+							placeholder="Все"
+						/>
 					</div>
 					<div class="form-group">
 						<label>Год от</label>
@@ -724,11 +731,12 @@ onMounted(async () => {
 					/>
 				</FormField>
 				<FormField label="Статус" required field-id="car-status">
-					<select id="car-status" v-model="formData.status" class="form-input">
-						<option value="active">Активен</option>
-						<option value="repair">В ремонте</option>
-						<option value="reserve">Резерв</option>
-					</select>
+					<AppSelect
+						field-id="car-status"
+						v-model="formData.status"
+						:options="carStatusOptions"
+						placeholder="Выберите статус"
+					/>
 				</FormField>
 
 				<FormField v-if="editingCar && editingCar._id" label="Фотографии" field-id="car-photos">
@@ -816,11 +824,12 @@ onMounted(async () => {
 		>
 			<form class="bulk-status-form">
 				<FormField label="Новый статус" required field-id="car-bulk-status">
-					<select id="car-bulk-status" v-model="bulkStatusForm.status" class="form-input" required>
-						<option value="active">Активен</option>
-						<option value="repair">В ремонте</option>
-						<option value="reserve">Резерв</option>
-					</select>
+					<AppSelect
+						field-id="car-bulk-status"
+						v-model="bulkStatusForm.status"
+						:options="carStatusOptions"
+						placeholder="Выберите статус"
+					/>
 				</FormField>
 				<p class="form-hint">
 					Будет изменен статус для {{ selectedCars.length }} автомобилей
@@ -847,14 +856,12 @@ onMounted(async () => {
 				<!-- Форма добавления ТО -->
 				<form v-if="showMaintenanceForm" @submit.prevent="handleSaveMaintenance" class="maintenance-form">
 					<FormField label="Тип обслуживания" required field-id="cars-maint-service_type">
-						<select id="cars-maint-service_type" v-model="maintenanceForm.service_type" class="form-input" required>
-							<option value="regular">Регулярное ТО</option>
-							<option value="repair">Ремонт</option>
-							<option value="inspection">Осмотр</option>
-							<option value="tire_change">Замена шин</option>
-							<option value="oil_change">Замена масла</option>
-							<option value="other">Другое</option>
-						</select>
+						<AppSelect
+							field-id="cars-maint-service_type"
+							v-model="maintenanceForm.service_type"
+							:options="serviceTypeOptions"
+							placeholder="Выберите тип"
+						/>
 					</FormField>
 					<FormField label="Описание" required field-id="cars-maint-description">
 						<textarea id="cars-maint-description" v-model="maintenanceForm.description" class="form-input" required></textarea>
