@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 import AppButton from '@/components/common/AppButton.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
 import type { SelectOption } from '@/components/common/AppSelect.vue';
+import FormField from '@/components/common/FormField.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { employeesApi } from '@/api/employees';
 import { cardsApi } from '@/api/cards';
@@ -22,6 +23,7 @@ interface PendingChange {
 }
 
 const saving = ref(false);
+const formError = ref<string | null>(null);
 
 // Быстрая форма создания связи
 const selectedCardId = ref<string>('');
@@ -30,6 +32,8 @@ const selectedCarId = ref<string>('');
 
 const pendingChanges = ref<PendingChange[]>([]);
 const confirm = useConfirm();
+
+const pendingChangesCount = computed<number>(() => pendingChanges.value.length);
 
 // Подгрузка опций для селектов (infinite scroll)
 const loadCardOptions = async (params: { page: number; limit: number }): Promise<{ options: SelectOption[]; total: number }> => {
@@ -93,6 +97,8 @@ const queueAssignLink = (
 };
 
 const createLinkFromForm = () => {
+	formError.value = null;
+
 	const employeeId = selectedEmployeeId.value;
 	const cardId = selectedCardId.value;
 	const carId = selectedCarId.value;
@@ -107,6 +113,7 @@ const createLinkFromForm = () => {
 		+ (hasCar ? 1 : 0)
 		< 2
 	) {
+		formError.value = 'Выберите как минимум две сущности для создания связи';
 		toast.warning('Выберите как минимум две сущности для связи');
 		return;
 	}
@@ -132,6 +139,7 @@ const createLinkFromForm = () => {
 	}
 
 	if (queued) {
+		formError.value = null;
 		selectedCardId.value = '';
 		selectedEmployeeId.value = '';
 		selectedCarId.value = '';
@@ -140,8 +148,8 @@ const createLinkFromForm = () => {
 
 const resetView = () => {
 	if (pendingChanges.value.length > 0) {
-		confirm.openConfirm('В очереди есть несохранённые изменения. Сбросить очередь?', {
-			title: 'Сбросить изменения?',
+		confirm.openConfirm('В очереди есть несохранённые изменения, которые ещё не были сохранены. Сбросить только очередь изменений? Уже сохранённые связи затронуты не будут.', {
+			title: 'Сбросить очередь изменений?',
 			confirmLabel: 'Сбросить',
 			onConfirm: () => {
 				pendingChanges.value = [];
@@ -211,16 +219,53 @@ const applyChange = async (change: PendingChange) => {
 		}
 	}
 };
+
+const removeChange = (change: PendingChange) => {
+	const index = pendingChanges.value.indexOf(change);
+	if (index !== -1) {
+		pendingChanges.value.splice(index, 1);
+	}
+};
+
+const getEntityLabel = (type: 'employee' | 'card' | 'car') => {
+	if (type === 'employee') return 'Сотрудник';
+	if (type === 'card') return 'Карта';
+	return 'Автомобиль';
+};
+
+const getChangeTypeLabel = (change: PendingChange) => (change.type === 'assign' ? 'Создание связи' : 'Удаление связи');
+
+const getLinkTypeLabel = (linkType: PendingChange['linkType']) => {
+	if (linkType === 'employee-card') return 'Сотрудник ↔ Карта';
+	if (linkType === 'employee-car') return 'Сотрудник ↔ Автомобиль';
+	return 'Карта ↔ Автомобиль';
+};
 </script>
 
 <template>
 	<div class="link-builder-page">
 		<div class="page-header">
-			<h1>Конструктор связей</h1>
+			<div class="page-header__titles">
+				<h1>Конструктор связей</h1>
+				<p class="page-header__subtitle">
+					Управляйте связями между картами, сотрудниками и автомобилями. Сначала
+					добавьте изменения в очередь, затем сохраните их одним действием.
+				</p>
+			</div>
 			<div class="header-actions">
-				<AppButton variant="secondary" @click="resetView">Сбросить</AppButton>
-				<AppButton variant="primary" :disabled="saving" @click="saveChanges">
-					{{ saving ? 'Сохранение...' : 'Сохранить изменения' }}
+				<AppButton variant="secondary" :disabled="saving || !pendingChangesCount" @click="resetView">
+					Сбросить очередь
+				</AppButton>
+				<AppButton
+					variant="primary"
+					:disabled="saving || !pendingChangesCount"
+					@click="saveChanges"
+				>
+					<span v-if="saving">Сохранение...</span>
+					<span v-else-if="pendingChangesCount">
+						Сохранить изменения ({{ pendingChangesCount }})
+					</span>
+					<span v-else>Нет изменений</span>
 				</AppButton>
 			</div>
 		</div>
@@ -230,8 +275,9 @@ const applyChange = async (change: PendingChange) => {
 			<div class="quick-link-header">
 				<h2>Создать связь</h2>
 				<p class="quick-link-subtitle">
-					Выберите карту, сотрудника и автомобиль для создания связи между ними.
-					Изменения будут применены после нажатия кнопки «Сохранить изменения».
+					Выберите любую комбинацию из карты, сотрудника и автомобиля для создания
+					или обновления связей. Все изменения сначала попадут в очередь и будут
+					применены после нажатия кнопки «Сохранить изменения».
 				</p>
 			</div>
 			<div class="quick-link-layout">
@@ -240,12 +286,18 @@ const applyChange = async (change: PendingChange) => {
 						<span class="quick-link-icon">💳</span>
 						<span class="quick-link-title">Карта</span>
 					</div>
-					<AppSelect
-						v-model="selectedCardId"
-						placeholder="Выберите карту"
-						searchable
-						:load-options="loadCardOptions"
-					/>
+					<FormField
+						label="Выберите карту"
+						field-id="link-card"
+						:error="formError ?? undefined"
+					>
+						<AppSelect
+							v-model="selectedCardId"
+							placeholder="Начните вводить номер карты"
+							searchable
+							:load-options="loadCardOptions"
+						/>
+					</FormField>
 				</div>
 
 				<div class="quick-link-node">
@@ -253,12 +305,18 @@ const applyChange = async (change: PendingChange) => {
 						<span class="quick-link-icon">👤</span>
 						<span class="quick-link-title">Сотрудник</span>
 					</div>
-					<AppSelect
-						v-model="selectedEmployeeId"
-						placeholder="Выберите сотрудника"
-						searchable
-						:load-options="loadEmployeeOptions"
-					/>
+					<FormField
+						label="Выберите сотрудника"
+						field-id="link-employee"
+						:error="formError ?? undefined"
+					>
+						<AppSelect
+							v-model="selectedEmployeeId"
+							placeholder="Начните вводить имя сотрудника"
+							searchable
+							:load-options="loadEmployeeOptions"
+						/>
+					</FormField>
 				</div>
 
 				<div class="quick-link-node">
@@ -266,12 +324,18 @@ const applyChange = async (change: PendingChange) => {
 						<span class="quick-link-icon">🚗</span>
 						<span class="quick-link-title">Автомобиль</span>
 					</div>
-					<AppSelect
-						v-model="selectedCarId"
-						placeholder="Выберите автомобиль"
-						searchable
-						:load-options="loadCarOptions"
-					/>
+					<FormField
+						label="Выберите автомобиль"
+						field-id="link-car"
+						:error="formError ?? undefined"
+					>
+						<AppSelect
+							v-model="selectedCarId"
+							placeholder="Начните вводить госномер или модель"
+							searchable
+							:load-options="loadCarOptions"
+						/>
+					</FormField>
 				</div>
 			</div>
 
@@ -281,21 +345,99 @@ const applyChange = async (change: PendingChange) => {
 				</AppButton>
 			</div>
 		</div>
+
+		<div class="changes-panel card" aria-live="polite">
+			<div class="changes-panel__header">
+				<h2>Очередь изменений</h2>
+				<span class="changes-panel__counter">
+					{{ pendingChangesCount }} {{ pendingChangesCount === 1 ? 'изменение' : 'изменений' }}
+				</span>
+			</div>
+
+			<div v-if="!pendingChangesCount" class="entities-empty">
+				В очереди пока нет изменений. Создайте связи с помощью формы выше.
+			</div>
+			<div v-else class="changes-list">
+				<div
+					v-for="(change, index) in pendingChanges"
+					:key="index"
+					class="change-item"
+					:class="{ 'change-item--unassign': change.type === 'unassign' }"
+				>
+					<div class="change-description">
+						<div class="change-meta">
+							<span class="change-type">
+								{{ getChangeTypeLabel(change) }}
+							</span>
+							<span class="change-link-type">
+								{{ getLinkTypeLabel(change.linkType) }}
+							</span>
+						</div>
+						<div class="connection-badge-wrap">
+							<span
+								class="connection-badge"
+								:class="{
+									'employee-badge': change.sourceType === 'employee',
+									'card-badge': change.sourceType === 'card',
+									'car-badge': change.sourceType === 'car',
+								}"
+							>
+								{{ getEntityLabel(change.sourceType) }}
+							</span>
+							<span>↔</span>
+							<span
+								class="connection-badge"
+								:class="{
+									'employee-badge': change.targetType === 'employee',
+									'card-badge': change.targetType === 'card',
+									'car-badge': change.targetType === 'car',
+								}"
+							>
+								{{ getEntityLabel(change.targetType) }}
+							</span>
+						</div>
+					</div>
+					<button
+						type="button"
+						class="unlink-btn"
+						aria-label="Удалить изменение из очереди"
+						@click="removeChange(change)"
+					>
+						×
+					</button>
+				</div>
+			</div>
+		</div>
 	</div>
 </template>
 
 <style scoped lang="scss">
 .link-builder-page {
-	h1 {
-		margin-bottom: $spacing-lg;
-	}
+	display: flex;
+	flex-direction: column;
+	gap: $spacing-lg;
 }
 
 .page-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: $spacing-lg;
+	margin-bottom: $spacing-md;
+	gap: $spacing-lg;
+	flex-wrap: wrap;
+}
+
+.page-header__titles {
+	display: flex;
+	flex-direction: column;
+	gap: $spacing-xs;
+	max-width: 640px;
+}
+
+.page-header__subtitle {
+	margin: 0;
+	color: $text-secondary;
+	font-size: $font-size-sm;
 }
 
 .link-builder-hint {
@@ -337,6 +479,10 @@ const applyChange = async (change: PendingChange) => {
 	margin-bottom: $spacing-md;
 	padding: $spacing-lg;
 
+	@media (max-width: 768px) {
+		padding: $spacing-md;
+	}
+
 	.quick-link-header {
 		margin-bottom: $spacing-md;
 
@@ -349,13 +495,13 @@ const applyChange = async (change: PendingChange) => {
 		.quick-link-subtitle {
 			margin: 0;
 			font-size: $font-size-sm;
-			color: #666;
+			color: $text-secondary;
 		}
 	}
 
 	.quick-link-layout {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		align-items: stretch;
 		gap: $spacing-md;
 
@@ -366,10 +512,10 @@ const applyChange = async (change: PendingChange) => {
 
 	.quick-link-node {
 		padding: $spacing-md;
-		background: #f9fbfc;
-		border-radius: $border-radius;
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-		border: 1px solid #e0e6ee;
+		background: $bg-subtle;
+		border-radius: $radius;
+		box-shadow: $shadow-sm;
+		border: 1px solid $border-light;
 		display: flex;
 		flex-direction: column;
 		gap: $spacing-sm;
@@ -409,10 +555,14 @@ const applyChange = async (change: PendingChange) => {
 	.quick-link-actions {
 		display: flex;
 		align-items: center;
-		margin-top: 12px;
+		margin-top: $spacing-md;
 
 		@media (max-width: 1024px) {
 			justify-content: flex-start;
+		}
+
+		@media (min-width: 1025px) {
+			justify-content: flex-end;
 		}
 	}
 }
@@ -635,8 +785,28 @@ const applyChange = async (change: PendingChange) => {
 .changes-panel {
 	margin-top: $spacing-lg;
 
-	h3 {
+	&__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: $spacing-md;
 		margin-bottom: $spacing-md;
+
+		h2 {
+			margin: 0;
+			font-size: $font-size-lg;
+			font-weight: $font-weight-semibold;
+			color: $text-primary;
+		}
+	}
+
+	&__counter {
+		background: $primary-color;
+		color: #fff;
+		padding: $spacing-xs $spacing-sm;
+		border-radius: $radius-sm;
+		font-size: $font-size-sm;
+		font-weight: $font-weight-semibold;
 	}
 }
 

@@ -6,12 +6,29 @@ const mockSetDate = vi.fn();
 const mockClear = vi.fn();
 const mockDestroy = vi.fn();
 
+const flatpickrOptionsSpy = vi.fn();
+
+const createCalendarContainer = () => {
+	const container = document.createElement('div');
+	container.className = 'flatpickr-calendar';
+	const days = document.createElement('div');
+	days.className = 'flatpickr-days';
+	container.appendChild(days);
+	return container;
+};
+
 vi.mock('flatpickr', () => ({
-	default: vi.fn(() => ({
-		setDate: mockSetDate,
-		clear: mockClear,
-		destroy: mockDestroy,
-	})),
+	default: vi.fn((_: unknown, options: unknown) => {
+		flatpickrOptionsSpy(options);
+		return {
+			setDate: mockSetDate,
+			clear: mockClear,
+			destroy: mockDestroy,
+			calendarContainer: createCalendarContainer(),
+			selectedDates: [],
+			close: vi.fn(),
+		};
+	}),
 }));
 
 vi.mock('flatpickr/dist/flatpickr.min.css', () => ({}));
@@ -73,6 +90,70 @@ describe('AppDatePicker', () => {
 			props: { modelValue: '2025-03-18' },
 		});
 		expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date), false);
+	});
+
+	it('emits year string in year mode and configures flatpickr for year-only', async () => {
+		const wrapper = mount(AppDatePicker, {
+			props: {
+				modelValue: '2024',
+				mode: 'year',
+			},
+		});
+
+		// имитируем выбор даты flatpickr
+		const selected = [new Date(2024, 0, 1)];
+		// последний вызов flatpickrOptionsSpy содержит опции, переданные компонентом
+		const lastCall = flatpickrOptionsSpy.mock.calls[flatpickrOptionsSpy.mock.calls.length - 1][0] as {
+			onChange?: (dates: Date[]) => void
+			dateFormat?: string
+			altFormat?: string
+			enableTime?: boolean
+		};
+
+		expect(lastCall.dateFormat).toBe('Y');
+		expect(lastCall.altFormat).toBe('Y');
+		expect(lastCall.enableTime).toBe(false);
+
+		lastCall.onChange?.(selected);
+
+		expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+		expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['2024']);
+	});
+
+	it('renders custom year grid in year mode and selects year on click', () => {
+		mount(AppDatePicker, {
+			props: {
+				modelValue: '2024',
+				mode: 'year',
+			},
+		});
+
+		const lastCall = flatpickrOptionsSpy.mock.calls[flatpickrOptionsSpy.mock.calls.length - 1][0] as {
+			onReady?: (dates: Date[], dateStr: string, instance: any) => void
+		};
+
+		expect(typeof lastCall.onReady).toBe('function');
+
+		const instance = {
+			setDate: mockSetDate,
+			clear: mockClear,
+			destroy: mockDestroy,
+			calendarContainer: createCalendarContainer(),
+			selectedDates: [],
+			close: vi.fn(),
+		};
+
+		lastCall.onReady?.([], '', instance);
+
+		const grid = instance.calendarContainer.querySelector('.flatpickr-year-grid') as HTMLElement | null;
+		expect(grid).not.toBeNull();
+
+		const firstYearButton = grid!.querySelector('.flatpickr-year-grid__item') as HTMLButtonElement | null;
+		expect(firstYearButton).not.toBeNull();
+
+		firstYearButton!.click();
+
+		expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date), true);
 	});
 
 	it('calls destroy on unmount', () => {

@@ -12,6 +12,7 @@ import SearchInput from '@/components/common/SearchInput.vue';
 import Pagination from '@/components/common/Pagination.vue';
 import FormField from '@/components/common/FormField.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
+import AppDatePicker from '@/components/common/AppDatePicker.vue';
 import { useCarsStore } from '@/stores/cars';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
@@ -44,8 +45,8 @@ const editingCar = ref<Car | null>(null);
 const searchQuery = ref('');
 const filters = ref({
 	status: '',
-	yearFrom: undefined as number | undefined,
-	yearTo: undefined as number | undefined,
+	yearFrom: undefined as string | undefined,
+	yearTo: undefined as string | undefined,
 });
 const selectedCars = ref<Car[]>([]);
 const showMaintenanceModal = ref(false);
@@ -98,12 +99,15 @@ const filteredCars = computed(() => {
 	}
 
 	// Фильтр по году
-	if (filters.value.yearFrom !== undefined) {
-		filtered = filtered.filter((car) => car.year >= filters.value.yearFrom!);
+	const yearFrom = filters.value.yearFrom ? Number(filters.value.yearFrom) : undefined;
+	const yearTo = filters.value.yearTo ? Number(filters.value.yearTo) : undefined;
+
+	if (yearFrom !== undefined && !Number.isNaN(yearFrom)) {
+		filtered = filtered.filter((car) => car.year >= yearFrom);
 	}
 
-	if (filters.value.yearTo !== undefined) {
-		filtered = filtered.filter((car) => car.year <= filters.value.yearTo!);
+	if (yearTo !== undefined && !Number.isNaN(yearTo)) {
+		filtered = filtered.filter((car) => car.year <= yearTo);
 	}
 
 	return filtered;
@@ -655,11 +659,21 @@ onMounted(async () => {
 					</div>
 					<div class="form-group">
 						<label>Год от</label>
-						<input v-model.number="filters.yearFrom" type="number" class="form-input" :min="1900" :max="new Date().getFullYear() + 1" />
+						<AppDatePicker
+							v-model="filters.yearFrom"
+							placeholder="Выберите год"
+							clearable
+							mode="year"
+						/>
 					</div>
 					<div class="form-group">
 						<label>Год до</label>
-						<input v-model.number="filters.yearTo" type="number" class="form-input" :min="1900" :max="new Date().getFullYear() + 1" />
+						<AppDatePicker
+							v-model="filters.yearTo"
+							placeholder="Выберите год"
+							clearable
+							mode="year"
+						/>
 					</div>
 				</div>
 				<div class="filters-actions">

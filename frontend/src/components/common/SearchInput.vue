@@ -35,8 +35,7 @@ defineEmits<{
 
 .search-field {
 	width: 100%;
-	padding: $spacing-sm $spacing-md;
-	padding-right: 40px;
+	padding: 10px 40px 10px $spacing-md;
 	border: 1px solid #e0e0e0;
 	border-radius: $border-radius;
 	font-size: $font-size-base;
