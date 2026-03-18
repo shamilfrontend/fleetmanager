@@ -10,15 +10,19 @@ import Confirm from '@/components/common/Confirm.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import SearchInput from '@/components/common/SearchInput.vue';
 import Pagination from '@/components/common/Pagination.vue';
+import FormField from '@/components/common/FormField.vue';
 import { useCarsStore } from '@/stores/cars';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { runBulkInBatches } from '@/utils/runBulkInBatches';
+import { validateForm, type ValidationRule } from '@/utils/validation';
 import { filterData } from '@/utils/filter';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import { maintenanceApi, type MaintenanceHistory } from '@/api/maintenance';
 import { formatDate, formatCurrency } from '@/utils/helpers';
 import { API_ORIGIN } from '@/utils/constants';
+import { getCarStatusLabel, getServiceTypeLabel } from '@/utils/labels';
 import { carsApi } from '@/api/cars';
 import type { Car } from '@/types';
 
@@ -43,6 +47,9 @@ const selectedCar = ref<Car | null>(null);
 const bulkStatusForm = ref({
 	status: 'active' as Car['status'],
 });
+const bulkProgress = ref({ done: 0, total: 0 });
+const bulkSaving = ref(false);
+const BULK_BATCH_SIZE = 8;
 const maintenanceHistory = ref<MaintenanceHistory[]>([]);
 const photoInput = ref<HTMLInputElement | null>(null);
 const documentInput = ref<HTMLInputElement | null>(null);
@@ -142,20 +149,32 @@ const clearSelection = () => {
 
 const bulkChangeStatus = () => {
 	if (selectedCars.value.length === 0) return;
+	bulkProgress.value = { done: 0, total: 0 };
 	showBulkStatusModal.value = true;
 };
 
 const handleBulkStatusSave = async () => {
+	const items = [...selectedCars.value];
+	const total = items.length;
+	if (total === 0) return;
+	bulkSaving.value = true;
+	bulkProgress.value = { done: 0, total };
 	try {
-		for (const car of selectedCars.value) {
-			await carsStore.updateCar(car._id, { status: bulkStatusForm.value.status });
-		}
-		toast.success(`Статус изменен для ${selectedCars.value.length} автомобилей`);
+		await runBulkInBatches(
+			items,
+			BULK_BATCH_SIZE,
+			(car) => carsStore.updateCar(car._id, { status: bulkStatusForm.value.status }),
+			(done, tot) => { bulkProgress.value = { done, total: tot }; },
+		);
+		toast.success(`Статус изменен для ${total} автомобилей`);
 		clearSelection();
 		showBulkStatusModal.value = false;
 		await fetchCarsPage();
 	} catch (error: unknown) {
 		toast.error(getApiErrorMessage(error));
+	} finally {
+		bulkSaving.value = false;
+		bulkProgress.value = { done: 0, total: 0 };
 	}
 };
 
@@ -165,9 +184,8 @@ const bulkDelete = () => {
 	confirm.openConfirm(`Удалить ${count} автомобилей?`, {
 		onConfirm: async () => {
 			try {
-				for (const car of selectedCars.value) {
-					await carsStore.deleteCar(car._id);
-				}
+				const items = [...selectedCars.value];
+				await runBulkInBatches(items, BULK_BATCH_SIZE, (car) => carsStore.deleteCar(car._id));
 				toast.success(`Удалено ${count} автомобилей`);
 				clearSelection();
 				await fetchCarsPage();
@@ -203,9 +221,9 @@ const openMaintenanceModal = async (car: Car) => {
 const loadMaintenanceHistory = async (carId: string) => {
 	try {
 		maintenanceHistory.value = await maintenanceApi.getAll({ carId });
-	} catch (error) {
+	} catch (error: unknown) {
 		console.error('Ошибка загрузки истории ТО:', error);
-		toast.error('Ошибка загрузки истории ТО');
+		toast.error(getApiErrorMessage(error));
 	}
 };
 
@@ -238,27 +256,6 @@ const handleSaveMaintenance = async () => {
 	} catch (error: unknown) {
 		toast.error(getApiErrorMessage(error));
 	}
-};
-
-const getStatusLabel = (status: string) => {
-	const labels: Record<string, string> = {
-		active: 'Активен',
-		repair: 'В ремонте',
-		reserve: 'Резерв',
-	};
-	return labels[status] || status;
-};
-
-const getServiceTypeLabel = (type: string) => {
-	const labels: Record<string, string> = {
-		regular: 'Регулярное ТО',
-		repair: 'Ремонт',
-		inspection: 'Осмотр',
-		tire_change: 'Замена шин',
-		oil_change: 'Замена масла',
-		other: 'Другое',
-	};
-	return labels[type] || type;
 };
 
 const getPhotoUrl = (photoPath: string) => {
@@ -421,35 +418,41 @@ const tableActions = [
 
 const validationErrors = ref<Record<string, string>>({});
 
+const CAR_FORM_RULES: Record<string, ValidationRule> = {
+	brand: { required: true, label: 'Марка' },
+	model: { required: true, label: 'Модель' },
+	plate_number: { required: true, label: 'Гос. номер' },
+	vin: {
+		required: true,
+		minLength: 17,
+		maxLength: 17,
+		label: 'VIN',
+	},
+	year: {
+		required: true,
+		min: 1900,
+		max: new Date().getFullYear() + 1,
+		label: 'Год',
+	},
+	mileage: {
+		custom: (v) => {
+			if (v === undefined || v === null) return 'Пробег обязателен для заполнения';
+			if (typeof v === 'number' && v < 0) return 'Пробег должен быть неотрицательным числом';
+			return true;
+		},
+		label: 'Пробег',
+	},
+};
+
 const validateCarForm = () => {
-	const errors: Record<string, string> = {};
-
-	if (!formData.value.brand?.trim()) {
-		errors.brand = 'Марка обязательна для заполнения';
-	}
-
-	if (!formData.value.model?.trim()) {
-		errors.model = 'Модель обязательна для заполнения';
-	}
-
-	if (!formData.value.plate_number?.trim()) {
-		errors.plate_number = 'Гос. номер обязателен для заполнения';
-	}
-
-	if (!formData.value.vin?.trim()) {
-		errors.vin = 'VIN обязателен для заполнения';
-	} else if (formData.value.vin.length !== 17) {
-		errors.vin = 'VIN должен содержать 17 символов';
-	}
-
-	if (!formData.value.year || formData.value.year < 1900 || formData.value.year > new Date().getFullYear() + 1) {
-		errors.year = `Год должен быть от 1900 до ${new Date().getFullYear() + 1}`;
-	}
-
-	if (formData.value.mileage === undefined || formData.value.mileage < 0) {
-		errors.mileage = 'Пробег должен быть неотрицательным числом';
-	}
-
+	const data = {
+		...formData.value,
+		brand: formData.value.brand?.trim(),
+		model: formData.value.model?.trim(),
+		plate_number: formData.value.plate_number?.trim(),
+		vin: formData.value.vin?.trim(),
+	};
+	const errors = validateForm(data, CAR_FORM_RULES);
 	validationErrors.value = errors;
 	return Object.keys(errors).length === 0;
 };
@@ -567,7 +570,7 @@ onMounted(async () => {
 			</div>
 		</div>
 
-		<div v-if="carsStore.loading" class="loading">Загрузка...</div>
+		<div v-if="carsStore.loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка...</div>
 		<div v-else-if="carsStore.error" class="error">{{ carsStore.error }}</div>
 		<template v-else>
 			<div class="filters card">
@@ -632,7 +635,7 @@ onMounted(async () => {
 				</template>
 				<template #cell-status="{ value }">
 					<span class="status-badge" :class="`status-${value}`">
-						{{ getStatusLabel(value) }}
+						{{ getCarStatusLabel(value) }}
 					</span>
 				</template>
 				<template #cell-maintenance="{ row }">
@@ -662,75 +665,73 @@ onMounted(async () => {
 			@update:is-open="(val) => { if (!val) resetForm() }"
 		>
 			<form class="car-form">
-				<div class="form-group">
-					<label>Марка <span class="required">*</span></label>
+				<FormField label="Марка" :error="validationErrors.brand" required field-id="car-brand">
 					<input
+						id="car-brand"
 						v-model="formData.brand"
 						class="form-input"
 						:class="{ 'form-input--error': validationErrors.brand }"
+						:aria-describedby="validationErrors.brand ? 'car-brand-error' : undefined"
 					/>
-					<span v-if="validationErrors.brand" class="error-message">{{ validationErrors.brand }}</span>
-				</div>
-				<div class="form-group">
-					<label>Модель <span class="required">*</span></label>
+				</FormField>
+				<FormField label="Модель" :error="validationErrors.model" required field-id="car-model">
 					<input
+						id="car-model"
 						v-model="formData.model"
 						class="form-input"
 						:class="{ 'form-input--error': validationErrors.model }"
+						:aria-describedby="validationErrors.model ? 'car-model-error' : undefined"
 					/>
-					<span v-if="validationErrors.model" class="error-message">{{ validationErrors.model }}</span>
-				</div>
-				<div class="form-group">
-					<label>Гос. номер <span class="required">*</span></label>
+				</FormField>
+				<FormField label="Гос. номер" :error="validationErrors.plate_number" required field-id="car-plate_number">
 					<input
+						id="car-plate_number"
 						v-model="formData.plate_number"
 						class="form-input"
 						:class="{ 'form-input--error': validationErrors.plate_number }"
+						:aria-describedby="validationErrors.plate_number ? 'car-plate_number-error' : undefined"
 					/>
-					<span v-if="validationErrors.plate_number" class="error-message">{{ validationErrors.plate_number }}</span>
-				</div>
-				<div class="form-group">
-					<label>VIN <span class="required">*</span></label>
+				</FormField>
+				<FormField label="VIN" :error="validationErrors.vin" required field-id="car-vin">
 					<input
+						id="car-vin"
 						v-model="formData.vin"
 						maxlength="17"
 						class="form-input"
 						:class="{ 'form-input--error': validationErrors.vin }"
+						:aria-describedby="validationErrors.vin ? 'car-vin-error' : undefined"
 					/>
-					<span v-if="validationErrors.vin" class="error-message">{{ validationErrors.vin }}</span>
-				</div>
-				<div class="form-group">
-					<label>Год <span class="required">*</span></label>
+				</FormField>
+				<FormField label="Год" :error="validationErrors.year" required field-id="car-year">
 					<input
+						id="car-year"
 						v-model.number="formData.year"
 						type="number"
 						class="form-input"
 						:class="{ 'form-input--error': validationErrors.year }"
+						:aria-describedby="validationErrors.year ? 'car-year-error' : undefined"
 					/>
-					<span v-if="validationErrors.year" class="error-message">{{ validationErrors.year }}</span>
-				</div>
-				<div class="form-group">
-					<label>Пробег <span class="required">*</span></label>
+				</FormField>
+				<FormField label="Пробег" :error="validationErrors.mileage" required field-id="car-mileage">
 					<input
+						id="car-mileage"
 						v-model.number="formData.mileage"
 						type="number"
 						min="0"
 						class="form-input"
 						:class="{ 'form-input--error': validationErrors.mileage }"
+						:aria-describedby="validationErrors.mileage ? 'car-mileage-error' : undefined"
 					/>
-					<span v-if="validationErrors.mileage" class="error-message">{{ validationErrors.mileage }}</span>
-				</div>
-				<div class="form-group">
-					<label>Статус <span class="required">*</span></label>
-					<select v-model="formData.status" class="form-input">
+				</FormField>
+				<FormField label="Статус" required field-id="car-status">
+					<select id="car-status" v-model="formData.status" class="form-input">
 						<option value="active">Активен</option>
 						<option value="repair">В ремонте</option>
 						<option value="reserve">Резерв</option>
 					</select>
-				</div>
+				</FormField>
 
-				<div v-if="editingCar && editingCar._id" class="form-group">
-					<label>Фотографии</label>
+				<FormField v-if="editingCar && editingCar._id" label="Фотографии" field-id="car-photos">
 					<div class="photos-section">
 						<div v-if="editingCar.photos && editingCar.photos.length > 0" class="photos-grid">
 							<div v-for="(photo, index) in editingCar.photos" :key="index" class="photo-item">
@@ -763,10 +764,9 @@ onMounted(async () => {
 							</AppButton>
 						</div>
 					</div>
-				</div>
+				</FormField>
 
-				<div v-if="editingCar && editingCar._id" class="form-group">
-					<label>Документы</label>
+				<FormField v-if="editingCar && editingCar._id" label="Документы" field-id="car-documents">
 					<div class="documents-section">
 						<div v-if="editingCar.documents && editingCar.documents.length > 0" class="documents-list">
 							<div v-for="(doc, index) in editingCar.documents" :key="index" class="document-item">
@@ -802,7 +802,7 @@ onMounted(async () => {
 							</AppButton>
 						</div>
 					</div>
-				</div>
+				</FormField>
 			</form>
 		</Modal>
 
@@ -810,20 +810,23 @@ onMounted(async () => {
 		<Modal
 			v-model:is-open="showBulkStatusModal"
 			title="Изменить статус"
+			:confirm-disabled="bulkSaving"
 			@confirm="handleBulkStatusSave"
-			@update:is-open="(val) => { if (!val) bulkStatusForm.status = 'active' }"
+			@update:is-open="(val) => { if (!val) { bulkStatusForm.status = 'active'; bulkProgress.value = { done: 0, total: 0 }; } }"
 		>
 			<form class="bulk-status-form">
-				<div class="form-group">
-					<label>Новый статус <span class="required">*</span></label>
-					<select v-model="bulkStatusForm.status" class="form-input" required>
+				<FormField label="Новый статус" required field-id="car-bulk-status">
+					<select id="car-bulk-status" v-model="bulkStatusForm.status" class="form-input" required>
 						<option value="active">Активен</option>
 						<option value="repair">В ремонте</option>
 						<option value="reserve">Резерв</option>
 					</select>
-				</div>
+				</FormField>
 				<p class="form-hint">
 					Будет изменен статус для {{ selectedCars.length }} автомобилей
+				</p>
+				<p v-if="bulkProgress.total > 0" class="bulk-progress">
+					Обновлено {{ bulkProgress.done }} из {{ bulkProgress.total }}
 				</p>
 			</form>
 		</Modal>
@@ -843,9 +846,8 @@ onMounted(async () => {
 
 				<!-- Форма добавления ТО -->
 				<form v-if="showMaintenanceForm" @submit.prevent="handleSaveMaintenance" class="maintenance-form">
-					<div class="form-group">
-						<label>Тип обслуживания <span class="required">*</span></label>
-						<select v-model="maintenanceForm.service_type" class="form-input" required>
+					<FormField label="Тип обслуживания" required field-id="cars-maint-service_type">
+						<select id="cars-maint-service_type" v-model="maintenanceForm.service_type" class="form-input" required>
 							<option value="regular">Регулярное ТО</option>
 							<option value="repair">Ремонт</option>
 							<option value="inspection">Осмотр</option>
@@ -853,35 +855,29 @@ onMounted(async () => {
 							<option value="oil_change">Замена масла</option>
 							<option value="other">Другое</option>
 						</select>
-					</div>
-					<div class="form-group">
-						<label>Описание <span class="required">*</span></label>
-						<textarea v-model="maintenanceForm.description" class="form-input" required></textarea>
+					</FormField>
+					<FormField label="Описание" required field-id="cars-maint-description">
+						<textarea id="cars-maint-description" v-model="maintenanceForm.description" class="form-input" required></textarea>
+					</FormField>
+					<div class="form-row">
+						<FormField label="Стоимость" required field-id="cars-maint-cost">
+							<input id="cars-maint-cost" v-model.number="maintenanceForm.cost" type="number" min="0" class="form-input" required />
+						</FormField>
+						<FormField label="Пробег" required field-id="cars-maint-mileage">
+							<input id="cars-maint-mileage" v-model.number="maintenanceForm.mileage" type="number" min="0" class="form-input" required />
+						</FormField>
 					</div>
 					<div class="form-row">
-						<div class="form-group">
-							<label>Стоимость <span class="required">*</span></label>
-							<input v-model.number="maintenanceForm.cost" type="number" min="0" class="form-input" required />
-						</div>
-						<div class="form-group">
-							<label>Пробег <span class="required">*</span></label>
-							<input v-model.number="maintenanceForm.mileage" type="number" min="0" class="form-input" required />
-						</div>
+						<FormField label="Дата обслуживания" required field-id="cars-maint-service_date">
+							<input id="cars-maint-service_date" v-model="maintenanceForm.service_date" type="date" class="form-input" required />
+						</FormField>
+						<FormField label="Следующее ТО" field-id="cars-maint-next_service_date">
+							<input id="cars-maint-next_service_date" v-model="maintenanceForm.next_service_date" type="date" class="form-input" />
+						</FormField>
 					</div>
-					<div class="form-row">
-						<div class="form-group">
-							<label>Дата обслуживания <span class="required">*</span></label>
-							<input v-model="maintenanceForm.service_date" type="date" class="form-input" required />
-						</div>
-						<div class="form-group">
-							<label>Следующее ТО</label>
-							<input v-model="maintenanceForm.next_service_date" type="date" class="form-input" />
-						</div>
-					</div>
-					<div class="form-group">
-						<label>Сервис</label>
-						<input v-model="maintenanceForm.service_provider" class="form-input" />
-					</div>
+					<FormField label="Сервис" field-id="cars-maint-service_provider">
+						<input id="cars-maint-service_provider" v-model="maintenanceForm.service_provider" class="form-input" />
+					</FormField>
 					<div class="form-actions">
 						<AppButton type="submit" variant="primary">Сохранить</AppButton>
 						<AppButton type="button" variant="secondary" @click="showMaintenanceForm = false">Отмена</AppButton>
@@ -1060,6 +1056,12 @@ label {
 	font-size: $font-size-sm;
 	color: #666;
 	margin-top: $spacing-xs;
+}
+
+.bulk-progress {
+	font-size: $font-size-sm;
+	color: $text-muted;
+	margin-top: $spacing-sm;
 }
 
 .no-results {

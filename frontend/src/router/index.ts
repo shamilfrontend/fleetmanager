@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 
 declare module 'vue-router' {
 	interface RouteMeta {
@@ -114,8 +115,13 @@ router.beforeEach(async (to, _from, next) => {
 		try {
 			await authStore.initAuth();
 		} catch (error) {
-			// Если не удалось восстановить, продолжаем дальше
 			console.error('Ошибка восстановления сессии:', error);
+			toast.error(getApiErrorMessage(error));
+			await authStore.logout();
+			if (to.path !== '/login' && to.path !== '/register') {
+				next('/login');
+				return;
+			}
 		}
 	}
 

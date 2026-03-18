@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { employeesApi } from '@/api/employees';
+import { getApiErrorMessage } from '@/utils/apiError';
 import type { Employee } from '@/types';
 
 export interface EmployeesFetchParams {
@@ -24,7 +25,7 @@ export const useEmployeesStore = defineStore('employees', () => {
 			employees.value = res.data;
 			total.value = res.total;
 		} catch (err) {
-			error.value = err instanceof Error ? err.message : 'Ошибка загрузки сотрудников';
+			error.value = getApiErrorMessage(err, 'Ошибка загрузки сотрудников');
 		} finally {
 			loading.value = false;
 		}
@@ -38,7 +39,7 @@ export const useEmployeesStore = defineStore('employees', () => {
 			employees.value.push(newEmployee);
 			return newEmployee;
 		} catch (err) {
-			error.value = err instanceof Error ? err.message : 'Ошибка создания сотрудника';
+			error.value = getApiErrorMessage(err, 'Ошибка создания сотрудника');
 			throw err;
 		} finally {
 			loading.value = false;
@@ -55,7 +56,7 @@ export const useEmployeesStore = defineStore('employees', () => {
 			}
 			return updatedEmployee;
 		} catch (err) {
-			error.value = err instanceof Error ? err.message : 'Ошибка обновления сотрудника';
+			error.value = getApiErrorMessage(err, 'Ошибка обновления сотрудника');
 			throw err;
 		} finally {
 			loading.value = false;
@@ -69,7 +70,7 @@ export const useEmployeesStore = defineStore('employees', () => {
 			employees.value = employees.value.filter((e) => e._id !== id);
 			total.value = Math.max(0, total.value - 1);
 		} catch (err) {
-			error.value = err instanceof Error ? err.message : 'Ошибка удаления сотрудника';
+			error.value = getApiErrorMessage(err, 'Ошибка удаления сотрудника');
 			throw err;
 		} finally {
 			loading.value = false;

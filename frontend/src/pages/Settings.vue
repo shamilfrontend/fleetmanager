@@ -5,6 +5,7 @@ import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
 import AppButton from '@/components/common/AppButton.vue';
 import Confirm from '@/components/common/Confirm.vue';
+import FormField from '@/components/common/FormField.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { authApi } from '@/api/auth';
 import { carsApi } from '@/api/cars';
@@ -201,34 +202,34 @@ const clearCache = () => {
 			<div class="settings-section card">
 				<h2>Смена пароля</h2>
 				<form @submit.prevent="handleChangePassword" class="password-form">
-					<div class="form-group">
-						<label>Текущий пароль</label>
+					<FormField label="Текущий пароль" required field-id="settings-current-password">
 						<input
+							id="settings-current-password"
 							v-model="passwordForm.currentPassword"
 							type="password"
 							required
 							class="form-input"
 						/>
-					</div>
-					<div class="form-group">
-						<label>Новый пароль</label>
+					</FormField>
+					<FormField label="Новый пароль" required field-id="settings-new-password">
 						<input
+							id="settings-new-password"
 							v-model="passwordForm.newPassword"
 							type="password"
 							required
 							minlength="6"
 							class="form-input"
 						/>
-					</div>
-					<div class="form-group">
-						<label>Подтвердите новый пароль</label>
+					</FormField>
+					<FormField label="Подтвердите новый пароль" required field-id="settings-confirm-password">
 						<input
+							id="settings-confirm-password"
 							v-model="passwordForm.confirmPassword"
 							type="password"
 							required
 							class="form-input"
 						/>
-					</div>
+					</FormField>
 					<AppButton type="submit" variant="primary" :disabled="changingPassword">
 						{{ changingPassword ? 'Сохранение...' : 'Изменить пароль' }}
 					</AppButton>
@@ -254,19 +255,19 @@ const clearCache = () => {
 				<div class="admin-create-user">
 					<h3>Создать пользователя</h3>
 					<form @submit.prevent="handleCreateUser" class="create-user-form create-user-form--row">
-						<div class="form-group">
-							<label>Email</label>
+						<FormField label="Email" required field-id="settings-create-email">
 							<input
+								id="settings-create-email"
 								v-model="createUserForm.email"
 								type="email"
 								required
 								placeholder="email@example.com"
 								class="form-input"
 							/>
-						</div>
-						<div class="form-group">
-							<label>Пароль</label>
+						</FormField>
+						<FormField label="Пароль" required field-id="settings-create-password">
 							<input
+								id="settings-create-password"
 								v-model="createUserForm.password"
 								type="password"
 								required
@@ -274,15 +275,14 @@ const clearCache = () => {
 								placeholder="Не менее 6 символов"
 								class="form-input"
 							/>
-						</div>
-						<div class="form-group">
-							<label>Роль</label>
-							<select v-model="createUserForm.role" class="form-input">
+						</FormField>
+						<FormField label="Роль" required field-id="settings-create-role">
+							<select id="settings-create-role" v-model="createUserForm.role" class="form-input">
 								<option value="driver">Водитель</option>
 								<option value="manager">Менеджер</option>
 								<option value="admin">Администратор</option>
 							</select>
-						</div>
+						</FormField>
 						<AppButton type="submit" variant="primary" class="create-user-form__submit" :disabled="creatingUser">
 							{{ creatingUser ? 'Создание...' : 'Создать' }}
 						</AppButton>

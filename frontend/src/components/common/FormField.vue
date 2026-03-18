@@ -1,20 +1,27 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+
 interface Props {
 	label?: string
 	error?: string
 	required?: boolean
+	/** Id для связи label с полем ввода и aria-describedby (доступность) */
+	fieldId?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
 	required: false,
 });
+
+/** Id элемента с текстом ошибки для aria-describedby на input (при fieldId и error). */
+const errorDescriptionId = computed(() => (props.fieldId && props.error ? `${props.fieldId}-error` : undefined));
 </script>
 
 <template>
 	<div class="form-group">
-		<label v-if="label">{{ label }}<span v-if="required" class="required">*</span></label>
+		<label v-if="label" :for="fieldId || undefined">{{ label }}<span v-if="required" class="required">*</span></label>
 		<slot />
-		<span v-if="error" class="error-message">{{ error }}</span>
+		<span v-if="error" :id="errorDescriptionId ?? undefined" class="error-message" role="alert">{{ error }}</span>
 	</div>
 </template>
 

@@ -9,6 +9,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import { formatCurrency } from '@/utils/helpers';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { getCardStatusLabel } from '@/utils/labels';
 import type { Card } from '@/types';
 
 const route = useRoute();
@@ -54,15 +55,6 @@ const assignedCar = computed(() => {
 		_id: o._id, brand: o.brand || '', model: o.model || '', plate_number: o.plate_number || '',
 	} : null;
 });
-
-const getStatusLabel = (status: string) => {
-	const labels: Record<string, string> = {
-		active: 'Активна',
-		blocked: 'Заблокирована',
-		expired: 'Истекла',
-	};
-	return labels[status] || status;
-};
 
 const formatDate = (dateStr: string | undefined) => {
 	if (!dateStr) return '—';
@@ -118,7 +110,7 @@ watch(() => route.params.id, loadCard, { immediate: true });
 <template>
 	<div class="card-detail-page">
 		<Breadcrumbs v-if="card" :items="breadcrumbItems" />
-		<div v-if="loading" class="loading">Загрузка данных...</div>
+		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка данных...</div>
 		<div v-else-if="error" class="error">{{ error }}</div>
 		<template v-else-if="card">
 			<div class="page-header">
@@ -159,7 +151,7 @@ watch(() => route.params.id, loadCard, { immediate: true });
 							<span class="info-label">Статус:</span>
 							<span class="info-value">
 								<span class="status-badge" :class="`status-${card.status}`">
-									{{ getStatusLabel(card.status) }}
+									{{ getCardStatusLabel(card.status) }}
 								</span>
 							</span>
 						</div>

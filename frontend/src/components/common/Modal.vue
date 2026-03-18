@@ -6,10 +6,13 @@ interface Props {
 	isOpen: boolean
 	title: string
 	showFooter?: boolean
+	/** Блокирует кнопку подтверждения (например, во время сохранения) */
+	confirmDisabled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	showFooter: true,
+	confirmDisabled: false,
 });
 
 const emit = defineEmits<{
@@ -51,7 +54,7 @@ onUnmounted(() => {
 					</div>
 					<div v-if="showFooter" class="modal-footer">
 						<slot name="footer">
-							<AppButton variant="primary" @click="handleConfirm">Подтвердить</AppButton>
+							<AppButton variant="primary" :disabled="confirmDisabled" @click="handleConfirm">Подтвердить</AppButton>
 							<AppButton variant="secondary" @click="close">Отмена</AppButton>
 						</slot>
 					</div>

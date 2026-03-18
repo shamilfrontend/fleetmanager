@@ -9,6 +9,7 @@ import Confirm from '@/components/common/Confirm.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import Pagination from '@/components/common/Pagination.vue';
 import SearchInput from '@/components/common/SearchInput.vue';
+import FormField from '@/components/common/FormField.vue';
 import { transactionsApi, type TransactionFilters } from '@/api/transactions';
 import { employeesApi } from '@/api/employees';
 import { carsApi } from '@/api/cars';
@@ -385,7 +386,7 @@ const loadFormData = async () => {
 			</div>
 		</div>
 
-		<div class="loading" v-if="loading">Загрузка...</div>
+		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка...</div>
 		<template v-else>
 			<DataTable
 				:data="filteredTransactions"
@@ -430,14 +431,13 @@ const loadFormData = async () => {
 			@update:is-open="(val) => { if (!val) bulkStatusForm.status = 'completed' }"
 		>
 			<form class="bulk-status-form">
-				<div class="form-group">
-					<label>Новый статус</label>
-					<select v-model="bulkStatusForm.status" class="form-input" required>
+				<FormField label="Новый статус" required field-id="tx-bulk-status">
+					<select id="tx-bulk-status" v-model="bulkStatusForm.status" class="form-input" required>
 						<option value="completed">Завершена</option>
 						<option value="pending">В ожидании</option>
 						<option value="cancelled">Отменена</option>
 					</select>
-				</div>
+				</FormField>
 				<p class="form-hint">
 					Будет изменен статус для {{ selectedTransactions.length }} транзакций
 				</p>
@@ -451,71 +451,61 @@ const loadFormData = async () => {
 			@update:is-open="(val) => { if (!val) resetForm() }"
 		>
 			<form class="transaction-form">
-				<div class="form-group">
-					<label>Карта</label>
-					<select v-model="formData.card_id" required class="form-input">
+				<FormField label="Карта" required field-id="tx-card_id">
+					<select id="tx-card_id" v-model="formData.card_id" required class="form-input">
 						<option value="">Выберите карту</option>
 						<option v-for="card in cards" :key="card._id" :value="card._id">
 							{{ card.card_number }} ({{ card.type === 'fuel' ? 'Топливная' : 'Сервисная' }})
 						</option>
 					</select>
-				</div>
-				<div class="form-group">
-					<label>Сотрудник</label>
-					<select v-model="formData.employee_id" required class="form-input">
+				</FormField>
+				<FormField label="Сотрудник" required field-id="tx-employee_id">
+					<select id="tx-employee_id" v-model="formData.employee_id" required class="form-input">
 						<option value="">Выберите сотрудника</option>
 						<option v-for="emp in employees" :key="emp._id" :value="emp._id">
 							{{ emp.full_name }}
 						</option>
 					</select>
-				</div>
-				<div class="form-group">
-					<label>Автомобиль</label>
-					<select v-model="formData.car_id" required class="form-input">
+				</FormField>
+				<FormField label="Автомобиль" required field-id="tx-car_id">
+					<select id="tx-car_id" v-model="formData.car_id" required class="form-input">
 						<option value="">Выберите автомобиль</option>
 						<option v-for="car in cars" :key="car._id" :value="car._id">
 							{{ car.brand }} {{ car.model }} ({{ car.plate_number }})
 						</option>
 					</select>
-				</div>
-				<div class="form-group">
-					<label>Сумма</label>
-					<input v-model.number="formData.amount" type="number" step="0.01" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Объем (л)</label>
-					<input v-model.number="formData.volume" type="number" step="0.01" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Тип топлива</label>
-					<select v-model="formData.fuel_type" required class="form-input">
+				</FormField>
+				<FormField label="Сумма" required field-id="tx-amount">
+					<input id="tx-amount" v-model.number="formData.amount" type="number" step="0.01" required class="form-input" />
+				</FormField>
+				<FormField label="Объем (л)" required field-id="tx-volume">
+					<input id="tx-volume" v-model.number="formData.volume" type="number" step="0.01" required class="form-input" />
+				</FormField>
+				<FormField label="Тип топлива" required field-id="tx-fuel_type">
+					<select id="tx-fuel_type" v-model="formData.fuel_type" required class="form-input">
 						<option value="">Выберите тип</option>
 						<option value="АИ-95">АИ-95</option>
 						<option value="АИ-92">АИ-92</option>
 						<option value="Дизель">Дизель</option>
 						<option value="Газ">Газ</option>
 					</select>
-				</div>
-				<div class="form-group">
-					<label>Место</label>
-					<input v-model="formData.location" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Пробег</label>
-					<input v-model.number="formData.odometer" type="number" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Дата</label>
-					<input v-model="formData.date" type="datetime-local" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Статус</label>
-					<select v-model="formData.status" required class="form-input">
+				</FormField>
+				<FormField label="Место" required field-id="tx-location">
+					<input id="tx-location" v-model="formData.location" required class="form-input" />
+				</FormField>
+				<FormField label="Пробег" required field-id="tx-odometer">
+					<input id="tx-odometer" v-model.number="formData.odometer" type="number" required class="form-input" />
+				</FormField>
+				<FormField label="Дата" required field-id="tx-date">
+					<input id="tx-date" v-model="formData.date" type="datetime-local" required class="form-input" />
+				</FormField>
+				<FormField label="Статус" required field-id="tx-status">
+					<select id="tx-status" v-model="formData.status" required class="form-input">
 						<option value="completed">Завершена</option>
 						<option value="pending">В ожидании</option>
 						<option value="cancelled">Отменена</option>
 					</select>
-				</div>
+				</FormField>
 			</form>
 		</Modal>
 		<Confirm

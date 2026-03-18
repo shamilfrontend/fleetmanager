@@ -2,9 +2,11 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppButton from '@/components/common/AppButton.vue';
+import FormField from '@/components/common/FormField.vue';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { validateForm, type ValidationRule } from '@/utils/validation';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -13,10 +15,26 @@ const email = ref('');
 const password = ref('');
 const loading = ref(false);
 const error = ref('');
+const validationErrors = ref<Record<string, string>>({});
+
+const LOGIN_RULES: Record<string, ValidationRule> = {
+	email: { required: true, label: 'Email' },
+	password: { required: true, label: 'Пароль' },
+};
 
 const handleLogin = async () => {
+	const errors = validateForm(
+		{ email: email.value, password: password.value },
+		LOGIN_RULES,
+	);
+	validationErrors.value = errors;
+	if (Object.keys(errors).length > 0) {
+		error.value = Object.values(errors)[0] ?? '';
+		return;
+	}
 	loading.value = true;
 	error.value = '';
+	validationErrors.value = {};
 	try {
 		await authStore.login(email.value, password.value);
 		toast.success('Вход выполнен успешно');
@@ -24,6 +42,7 @@ const handleLogin = async () => {
 	} catch (err: unknown) {
 		const errorMessage = getApiErrorMessage(err);
 		error.value = errorMessage;
+		validationErrors.value = { email: errorMessage };
 		toast.error(errorMessage);
 	} finally {
 		loading.value = false;
@@ -37,26 +56,28 @@ const handleLogin = async () => {
 			<h1 class="login-title">FleetManager</h1>
 			<p class="login-subtitle">Вход в систему</p>
 			<form @submit.prevent="handleLogin" class="login-form">
-				<div class="form-group">
-					<label>Email</label>
+				<FormField label="Email" :error="validationErrors.email" required field-id="login-email">
 					<input
+						id="login-email"
 						v-model="email"
 						type="email"
 						required
 						placeholder="Введите email"
 						class="form-input"
+						:aria-describedby="validationErrors.email ? 'login-email-error' : undefined"
 					/>
-				</div>
-				<div class="form-group">
-					<label>Пароль</label>
+				</FormField>
+				<FormField label="Пароль" :error="validationErrors.password" required field-id="login-password">
 					<input
+						id="login-password"
 						v-model="password"
 						type="password"
 						required
 						placeholder="Введите пароль"
 						class="form-input"
+						:aria-describedby="validationErrors.password ? 'login-password-error' : undefined"
 					/>
-				</div>
+				</FormField>
 				<AppButton type="submit" variant="primary" block :disabled="loading">
 					{{ loading ? 'Вход...' : 'Войти' }}
 				</AppButton>

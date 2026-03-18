@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { carsApi } from '@/api/cars';
+import { getApiErrorMessage } from '@/utils/apiError';
 import type { Car } from '@/types';
 
 export interface CarsFetchParams {
@@ -24,7 +25,7 @@ export const useCarsStore = defineStore('cars', () => {
 			cars.value = res.data;
 			total.value = res.total;
 		} catch (err) {
-			error.value = err instanceof Error ? err.message : 'Ошибка загрузки автомобилей';
+			error.value = getApiErrorMessage(err, 'Ошибка загрузки автомобилей');
 		} finally {
 			loading.value = false;
 		}
@@ -38,7 +39,7 @@ export const useCarsStore = defineStore('cars', () => {
 			cars.value.push(newCar);
 			return newCar;
 		} catch (err) {
-			error.value = err instanceof Error ? err.message : 'Ошибка создания автомобиля';
+			error.value = getApiErrorMessage(err, 'Ошибка создания автомобиля');
 			throw err;
 		} finally {
 			loading.value = false;
@@ -55,7 +56,7 @@ export const useCarsStore = defineStore('cars', () => {
 			}
 			return updatedCar;
 		} catch (err) {
-			error.value = err instanceof Error ? err.message : 'Ошибка обновления автомобиля';
+			error.value = getApiErrorMessage(err, 'Ошибка обновления автомобиля');
 			throw err;
 		} finally {
 			loading.value = false;
@@ -69,7 +70,7 @@ export const useCarsStore = defineStore('cars', () => {
 			cars.value = cars.value.filter((c) => c._id !== id);
 			total.value = Math.max(0, total.value - 1);
 		} catch (err) {
-			error.value = err instanceof Error ? err.message : 'Ошибка удаления автомобиля';
+			error.value = getApiErrorMessage(err, 'Ошибка удаления автомобиля');
 			throw err;
 		} finally {
 			loading.value = false;

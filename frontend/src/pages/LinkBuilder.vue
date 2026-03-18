@@ -237,7 +237,7 @@ onMounted(() => {
 			</div>
 		</div>
 
-		<div v-if="loading" class="loading">Загрузка данных...</div>
+		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка данных...</div>
 		<template v-else>
 			<!-- Быстрая форма создания связи -->
 			<div class="quick-link-builder card">

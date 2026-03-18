@@ -10,12 +10,14 @@ import Confirm from '@/components/common/Confirm.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import SearchInput from '@/components/common/SearchInput.vue';
 import Pagination from '@/components/common/Pagination.vue';
+import FormField from '@/components/common/FormField.vue';
 import { useAuthStore } from '@/stores/auth';
 import { cardsApi } from '@/api/cards';
 import { employeesApi } from '@/api/employees';
 import { carsApi } from '@/api/cars';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { runBulkInBatches } from '@/utils/runBulkInBatches';
 import { filterData } from '@/utils/filter';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import type { Card, Employee, Car } from '@/types';
@@ -43,6 +45,10 @@ const showBulkStatusModal = ref(false);
 const bulkStatusForm = ref({
 	status: 'active',
 });
+const bulkProgress = ref({ done: 0, total: 0 });
+const bulkSaving = ref(false);
+
+const BULK_BATCH_SIZE = 8;
 
 // Сервер уже фильтрует по статусу и типу, здесь оставляем только поиск по номеру
 const filteredCards = computed(() => filterData(cards.value, searchQuery.value, ['card_number']));
@@ -65,20 +71,32 @@ const clearSelection = () => {
 
 const bulkChangeStatus = () => {
 	if (selectedCards.value.length === 0) return;
+	bulkProgress.value = { done: 0, total: 0 };
 	showBulkStatusModal.value = true;
 };
 
 const handleBulkStatusSave = async () => {
+	const items = [...selectedCards.value];
+	const total = items.length;
+	if (total === 0) return;
+	bulkSaving.value = true;
+	bulkProgress.value = { done: 0, total };
 	try {
-		for (const card of selectedCards.value) {
-			await cardsApi.update(card._id, { status: bulkStatusForm.value.status });
-		}
-		toast.success(`Статус изменен для ${selectedCards.value.length} карт`);
+		await runBulkInBatches(
+			items,
+			BULK_BATCH_SIZE,
+			(card) => cardsApi.update(card._id, { status: bulkStatusForm.value.status }),
+			(done, tot) => { bulkProgress.value = { done, total: tot }; },
+		);
+		toast.success(`Статус изменен для ${total} карт`);
 		clearSelection();
 		showBulkStatusModal.value = false;
 		await fetchCards();
 	} catch (error: unknown) {
 		toast.error(getApiErrorMessage(error));
+	} finally {
+		bulkSaving.value = false;
+		bulkProgress.value = { done: 0, total: 0 };
 	}
 };
 
@@ -88,9 +106,8 @@ const bulkDelete = () => {
 	confirm.openConfirm(`Удалить ${count} карт?`, {
 		onConfirm: async () => {
 			try {
-				for (const card of selectedCards.value) {
-					await cardsApi.delete(card._id);
-				}
+				const items = [...selectedCards.value];
+				await runBulkInBatches(items, BULK_BATCH_SIZE, (card) => cardsApi.delete(card._id));
 				toast.success(`Удалено ${count} карт`);
 				clearSelection();
 				await fetchCards();
@@ -341,7 +358,7 @@ onMounted(async () => {
 			</div>
 		</div>
 
-		<div class="loading" v-if="loading">Загрузка...</div>
+		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка...</div>
 		<template v-else>
 			<div class="filters card">
 				<h3>Фильтры</h3>
@@ -431,55 +448,47 @@ onMounted(async () => {
 			@update:is-open="(val) => { if (!val) resetForm() }"
 		>
 			<form class="card-form">
-				<div class="form-group">
-					<label>Номер карты</label>
-					<input v-model="formData.card_number" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Тип</label>
-					<select v-model="formData.type" required class="form-input">
+				<FormField label="Номер карты" required field-id="card-card_number">
+					<input id="card-card_number" v-model="formData.card_number" required class="form-input" />
+				</FormField>
+				<FormField label="Тип" required field-id="card-type">
+					<select id="card-type" v-model="formData.type" required class="form-input">
 						<option value="fuel">Топливная</option>
 						<option value="service">Сервисная</option>
 					</select>
-				</div>
-				<div class="form-group">
-					<label>Баланс</label>
-					<input v-model.number="formData.balance" type="number" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Лимит</label>
-					<input v-model.number="formData.limit" type="number" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Статус</label>
-					<select v-model="formData.status" required class="form-input">
+				</FormField>
+				<FormField label="Баланс" required field-id="card-balance">
+					<input id="card-balance" v-model.number="formData.balance" type="number" required class="form-input" />
+				</FormField>
+				<FormField label="Лимит" required field-id="card-limit">
+					<input id="card-limit" v-model.number="formData.limit" type="number" required class="form-input" />
+				</FormField>
+				<FormField label="Статус" required field-id="card-status">
+					<select id="card-status" v-model="formData.status" required class="form-input">
 						<option value="active">Активна</option>
 						<option value="blocked">Заблокирована</option>
 						<option value="expired">Истекла</option>
 					</select>
-				</div>
-				<div class="form-group">
-					<label>Привязать к сотруднику</label>
-					<select v-model="formData.assigned_to" class="form-input">
+				</FormField>
+				<FormField label="Привязать к сотруднику" field-id="card-assigned_to">
+					<select id="card-assigned_to" v-model="formData.assigned_to" class="form-input">
 						<option :value="undefined">Не привязана</option>
 						<option v-for="emp in employees" :key="emp._id" :value="emp._id">
 							{{ emp.full_name }} ({{ emp.position }})
 						</option>
 					</select>
-				</div>
-				<div class="form-group">
-					<label>Привязать к автомобилю</label>
-					<select v-model="formData.assigned_car" class="form-input">
+				</FormField>
+				<FormField label="Привязать к автомобилю" field-id="card-assigned_car">
+					<select id="card-assigned_car" v-model="formData.assigned_car" class="form-input">
 						<option :value="undefined">Не привязана</option>
 						<option v-for="car in cars" :key="car._id" :value="car._id">
 							{{ car.brand }} {{ car.model }} ({{ car.plate_number }})
 						</option>
 					</select>
-				</div>
-				<div class="form-group" v-if="formData.expiry_date !== undefined">
-					<label>Срок действия</label>
-					<input v-model="formData.expiry_date" type="date" class="form-input" />
-				</div>
+				</FormField>
+				<FormField v-if="formData.expiry_date !== undefined" label="Срок действия" field-id="card-expiry_date">
+					<input id="card-expiry_date" v-model="formData.expiry_date" type="date" class="form-input" />
+				</FormField>
 			</form>
 		</Modal>
 
@@ -487,20 +496,23 @@ onMounted(async () => {
 		<Modal
 			v-model:is-open="showBulkStatusModal"
 			title="Изменить статус"
+			:confirm-disabled="bulkSaving"
 			@confirm="handleBulkStatusSave"
-			@update:is-open="(val) => { if (!val) bulkStatusForm.status = 'active' }"
+			@update:is-open="(val) => { if (!val) { bulkStatusForm.status = 'active'; bulkProgress.value = { done: 0, total: 0 }; } }"
 		>
 			<form class="bulk-status-form">
-				<div class="form-group">
-					<label>Новый статус <span class="required">*</span></label>
-					<select v-model="bulkStatusForm.status" class="form-input" required>
+				<FormField label="Новый статус" required field-id="card-bulk-status">
+					<select id="card-bulk-status" v-model="bulkStatusForm.status" class="form-input" required>
 						<option value="active">Активна</option>
 						<option value="blocked">Заблокирована</option>
 						<option value="expired">Истекла</option>
 					</select>
-				</div>
+				</FormField>
 				<p class="form-hint">
 					Будет изменен статус для {{ selectedCards.length }} карт
+				</p>
+				<p v-if="bulkProgress.total > 0" class="bulk-progress">
+					Обновлено {{ bulkProgress.done }} из {{ bulkProgress.total }}
 				</p>
 			</form>
 		</Modal>
@@ -639,5 +651,11 @@ label {
 	font-size: $font-size-sm;
 	color: #666;
 	margin-top: $spacing-xs;
+}
+
+.bulk-progress {
+	font-size: $font-size-sm;
+	color: $text-muted;
+	margin-top: $spacing-sm;
 }
 </style>

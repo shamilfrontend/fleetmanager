@@ -10,11 +10,13 @@ import { useConfirm } from '@/composables/useConfirm';
 import Modal from '@/components/common/Modal.vue';
 import SearchInput from '@/components/common/SearchInput.vue';
 import Pagination from '@/components/common/Pagination.vue';
+import FormField from '@/components/common/FormField.vue';
 import { useEmployeesStore } from '@/stores/employees';
 import { useAuthStore } from '@/stores/auth';
 import { employeesApi } from '@/api/employees';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { runBulkInBatches } from '@/utils/runBulkInBatches';
 import { filterData } from '@/utils/filter';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import type { Employee } from '@/types';
@@ -36,6 +38,9 @@ const showBulkStatusModal = ref(false);
 const bulkStatusForm = ref({
 	status: 'active' as Employee['status'],
 });
+const bulkProgress = ref({ done: 0, total: 0 });
+const bulkSaving = ref(false);
+const BULK_BATCH_SIZE = 8;
 const formData = ref<Partial<Employee>>({
 	full_name: '',
 	position: '',
@@ -117,20 +122,32 @@ const clearSelection = () => {
 
 const bulkChangeStatus = () => {
 	if (selectedEmployees.value.length === 0) return;
+	bulkProgress.value = { done: 0, total: 0 };
 	showBulkStatusModal.value = true;
 };
 
 const handleBulkStatusSave = async () => {
+	const items = [...selectedEmployees.value];
+	const total = items.length;
+	if (total === 0) return;
+	bulkSaving.value = true;
+	bulkProgress.value = { done: 0, total };
 	try {
-		for (const employee of selectedEmployees.value) {
-			await employeesStore.updateEmployee(employee._id, { status: bulkStatusForm.value.status });
-		}
-		toast.success(`Статус изменен для ${selectedEmployees.value.length} сотрудников`);
+		await runBulkInBatches(
+			items,
+			BULK_BATCH_SIZE,
+			(employee) => employeesStore.updateEmployee(employee._id, { status: bulkStatusForm.value.status }),
+			(done, tot) => { bulkProgress.value = { done, total: tot }; },
+		);
+		toast.success(`Статус изменен для ${total} сотрудников`);
 		clearSelection();
 		showBulkStatusModal.value = false;
 		await fetchEmployeesPage();
 	} catch (error: unknown) {
 		toast.error(getApiErrorMessage(error));
+	} finally {
+		bulkSaving.value = false;
+		bulkProgress.value = { done: 0, total: 0 };
 	}
 };
 
@@ -140,9 +157,8 @@ const bulkDelete = () => {
 	confirm.openConfirm(`Удалить ${count} сотрудников?`, {
 		onConfirm: async () => {
 			try {
-				for (const employee of selectedEmployees.value) {
-					await employeesStore.deleteEmployee(employee._id);
-				}
+				const items = [...selectedEmployees.value];
+				await runBulkInBatches(items, BULK_BATCH_SIZE, (employee) => employeesStore.deleteEmployee(employee._id));
 				toast.success(`Удалено ${count} сотрудников`);
 				clearSelection();
 				await fetchEmployeesPage();
@@ -292,7 +308,7 @@ onMounted(async () => {
 			</div>
 		</div>
 
-		<div v-if="employeesStore.loading" class="loading">Загрузка...</div>
+		<div v-if="employeesStore.loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка...</div>
 		<div v-else-if="employeesStore.error" class="error">{{ employeesStore.error }}</div>
 		<template v-else>
 			<div class="filters card">
@@ -375,33 +391,27 @@ onMounted(async () => {
 			@update:is-open="(val) => { if (!val) resetForm() }"
 		>
 			<form class="employee-form">
-				<div class="form-group">
-					<label>ФИО</label>
-					<input v-model="formData.full_name" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Должность</label>
-					<input v-model="formData.position" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Отдел</label>
-					<input v-model="formData.department" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Телефон</label>
-					<input v-model="formData.phone" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Дата найма</label>
-					<input v-model="formData.hire_date" type="date" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label>Статус</label>
-					<select v-model="formData.status" required class="form-input">
+				<FormField label="ФИО" required field-id="employee-full_name">
+					<input id="employee-full_name" v-model="formData.full_name" required class="form-input" />
+				</FormField>
+				<FormField label="Должность" required field-id="employee-position">
+					<input id="employee-position" v-model="formData.position" required class="form-input" />
+				</FormField>
+				<FormField label="Отдел" required field-id="employee-department">
+					<input id="employee-department" v-model="formData.department" required class="form-input" />
+				</FormField>
+				<FormField label="Телефон" required field-id="employee-phone">
+					<input id="employee-phone" v-model="formData.phone" required class="form-input" />
+				</FormField>
+				<FormField label="Дата найма" required field-id="employee-hire_date">
+					<input id="employee-hire_date" v-model="formData.hire_date" type="date" required class="form-input" />
+				</FormField>
+				<FormField label="Статус" required field-id="employee-status">
+					<select id="employee-status" v-model="formData.status" required class="form-input">
 						<option value="active">Активен</option>
 						<option value="inactive">Неактивен</option>
 					</select>
-				</div>
+				</FormField>
 			</form>
 		</Modal>
 
@@ -409,19 +419,22 @@ onMounted(async () => {
 		<Modal
 			v-model:is-open="showBulkStatusModal"
 			title="Изменить статус"
+			:confirm-disabled="bulkSaving"
 			@confirm="handleBulkStatusSave"
-			@update:is-open="(val) => { if (!val) bulkStatusForm.status = 'active' }"
+			@update:is-open="(val) => { if (!val) { bulkStatusForm.status = 'active'; bulkProgress.value = { done: 0, total: 0 }; } }"
 		>
 			<form class="bulk-status-form">
-				<div class="form-group">
-					<label>Новый статус <span class="required">*</span></label>
-					<select v-model="bulkStatusForm.status" class="form-input" required>
+				<FormField label="Новый статус" required field-id="employee-bulk-status">
+					<select id="employee-bulk-status" v-model="bulkStatusForm.status" class="form-input" required>
 						<option value="active">Активен</option>
 						<option value="inactive">Неактивен</option>
 					</select>
-				</div>
+				</FormField>
 				<p class="form-hint">
 					Будет изменен статус для {{ selectedEmployees.length }} сотрудников
+				</p>
+				<p v-if="bulkProgress.total > 0" class="bulk-progress">
+					Обновлено {{ bulkProgress.done }} из {{ bulkProgress.total }}
 				</p>
 			</form>
 		</Modal>
@@ -543,6 +556,12 @@ label {
 .table-controls {
 	margin-bottom: $spacing-md;
 	padding: $spacing-md;
+}
+
+.bulk-progress {
+	font-size: $font-size-sm;
+	color: $text-muted;
+	margin-top: $spacing-sm;
 }
 
 .no-results {

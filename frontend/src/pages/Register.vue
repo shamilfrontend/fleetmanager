@@ -2,9 +2,11 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppButton from '@/components/common/AppButton.vue';
+import FormField from '@/components/common/FormField.vue';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { validateForm, type ValidationRule } from '@/utils/validation';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -14,19 +16,34 @@ const password = ref('');
 const confirmPassword = ref('');
 const loading = ref(false);
 const error = ref('');
+const validationErrors = ref<Record<string, string>>({});
+
+const REGISTER_RULES: Record<string, ValidationRule> = {
+	email: { required: true, label: 'Email' },
+	password: { required: true, minLength: 6, label: 'Пароль' },
+	confirmPassword: {
+		required: true,
+		custom: (v, ctx) => (v === ctx?.password ? true : 'Пароли не совпадают'),
+		label: 'Подтверждение пароля',
+	},
+};
 
 const handleRegister = async () => {
-	if (password.value !== confirmPassword.value) {
-		error.value = 'Пароли не совпадают';
-		return;
-	}
-	if (password.value.length < 6) {
-		error.value = 'Пароль должен быть не менее 6 символов';
+	const data = {
+		email: email.value,
+		password: password.value,
+		confirmPassword: confirmPassword.value,
+	};
+	const errors = validateForm(data, REGISTER_RULES);
+	validationErrors.value = errors;
+	if (Object.keys(errors).length > 0) {
+		error.value = Object.values(errors)[0] ?? '';
 		return;
 	}
 
 	loading.value = true;
 	error.value = '';
+	validationErrors.value = {};
 	try {
 		await authStore.register(email.value, password.value, 'driver');
 		toast.success('Регистрация успешна');
@@ -34,6 +51,7 @@ const handleRegister = async () => {
 	} catch (err: unknown) {
 		const errorMessage = getApiErrorMessage(err);
 		error.value = errorMessage;
+		validationErrors.value = { email: errorMessage };
 		toast.error(errorMessage);
 	} finally {
 		loading.value = false;
@@ -47,37 +65,40 @@ const handleRegister = async () => {
 			<h1 class="register-title">FleetManager</h1>
 			<p class="register-subtitle">Регистрация</p>
 			<form @submit.prevent="handleRegister" class="register-form">
-				<div class="form-group">
-					<label>Email</label>
+				<FormField label="Email" :error="validationErrors.email" required field-id="register-email">
 					<input
+						id="register-email"
 						v-model="email"
 						type="email"
 						required
 						placeholder="Введите email"
 						class="form-input"
+						:aria-describedby="validationErrors.email ? 'register-email-error' : undefined"
 					/>
-				</div>
-				<div class="form-group">
-					<label>Пароль</label>
+				</FormField>
+				<FormField label="Пароль" :error="validationErrors.password" required field-id="register-password">
 					<input
+						id="register-password"
 						v-model="password"
 						type="password"
 						required
 						minlength="6"
 						placeholder="Не менее 6 символов"
 						class="form-input"
+						:aria-describedby="validationErrors.password ? 'register-password-error' : undefined"
 					/>
-				</div>
-				<div class="form-group">
-					<label>Подтвердите пароль</label>
+				</FormField>
+				<FormField label="Подтвердите пароль" :error="validationErrors.confirmPassword" required field-id="register-confirm-password">
 					<input
+						id="register-confirm-password"
 						v-model="confirmPassword"
 						type="password"
 						required
 						placeholder="Повторите пароль"
 						class="form-input"
+						:aria-describedby="validationErrors.confirmPassword ? 'register-confirm-password-error' : undefined"
 					/>
-				</div>
+				</FormField>
 				<AppButton type="submit" variant="primary" block :disabled="loading">
 					{{ loading ? 'Регистрация...' : 'Зарегистрироваться' }}
 				</AppButton>

@@ -6,6 +6,7 @@ import AppButton from '@/components/common/AppButton.vue';
 import Breadcrumbs from '@/components/common/Breadcrumbs.vue';
 import Modal from '@/components/common/Modal.vue';
 import Confirm from '@/components/common/Confirm.vue';
+import FormField from '@/components/common/FormField.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { carsApi } from '@/api/cars';
 import { employeesApi } from '@/api/employees';
@@ -15,6 +16,7 @@ import { formatDate, formatCurrency, formatNumber } from '@/utils/helpers';
 import { API_ORIGIN } from '@/utils/constants';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { getCarStatusLabel, getServiceTypeLabel } from '@/utils/labels';
 import type { Car, Employee, Card } from '@/types';
 
 const route = useRoute();
@@ -62,27 +64,6 @@ const breadcrumbItems = computed(() => {
 		{ label: `${c.brand} ${c.model}` },
 	];
 });
-
-const getStatusLabel = (status: string) => {
-	const labels: Record<string, string> = {
-		active: 'Активен',
-		repair: 'В ремонте',
-		reserve: 'Резерв',
-	};
-	return labels[status] || status;
-};
-
-const getServiceTypeLabel = (type: string) => {
-	const labels: Record<string, string> = {
-		regular: 'Регулярное ТО',
-		repair: 'Ремонт',
-		inspection: 'Осмотр',
-		tire_change: 'Замена шин',
-		oil_change: 'Замена масла',
-		other: 'Другое',
-	};
-	return labels[type] || type;
-};
 
 const getPhotoUrl = (photoPath: string) => {
 	if (!photoPath) return '';
@@ -314,7 +295,7 @@ onMounted(() => {
 
 <template>
 	<div class="car-detail-page">
-		<div v-if="loading" class="loading">Загрузка данных...</div>
+		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка данных...</div>
 		<div v-else-if="error" class="error">{{ error }}</div>
 		<template v-else-if="car">
 			<Breadcrumbs :items="breadcrumbItems" />
@@ -365,7 +346,7 @@ onMounted(() => {
 							<span class="info-label">Статус:</span>
 							<span class="info-value">
 								<span class="status-badge" :class="`status-${car.status}`">
-									{{ getStatusLabel(car.status) }}
+									{{ getCarStatusLabel(car.status) }}
 								</span>
 							</span>
 						</div>
@@ -632,9 +613,8 @@ onMounted(() => {
 			@confirm="handleSaveMaintenance"
 		>
 			<form class="maintenance-form">
-				<div class="form-group">
-					<label>Тип обслуживания <span class="required">*</span></label>
-					<select v-model="maintenanceForm.service_type" required>
+				<FormField label="Тип обслуживания" required field-id="maint-service_type">
+					<select id="maint-service_type" v-model="maintenanceForm.service_type" required>
 						<option value="regular">Регулярное ТО</option>
 						<option value="repair">Ремонт</option>
 						<option value="inspection">Осмотр</option>
@@ -642,40 +622,33 @@ onMounted(() => {
 						<option value="oil_change">Замена масла</option>
 						<option value="other">Другое</option>
 					</select>
-				</div>
-				<div class="form-group">
-					<label>Описание <span class="required">*</span></label>
-					<textarea v-model="maintenanceForm.description" required></textarea>
+				</FormField>
+				<FormField label="Описание" required field-id="maint-description">
+					<textarea id="maint-description" v-model="maintenanceForm.description" required></textarea>
+				</FormField>
+				<div class="form-row">
+					<FormField label="Стоимость" required field-id="maint-cost">
+						<input id="maint-cost" type="number" v-model.number="maintenanceForm.cost" min="0" required />
+					</FormField>
+					<FormField label="Пробег" required field-id="maint-mileage">
+						<input id="maint-mileage" type="number" v-model.number="maintenanceForm.mileage" min="0" required />
+					</FormField>
 				</div>
 				<div class="form-row">
-					<div class="form-group">
-						<label>Стоимость <span class="required">*</span></label>
-						<input type="number" v-model.number="maintenanceForm.cost" min="0" required />
-					</div>
-					<div class="form-group">
-						<label>Пробег <span class="required">*</span></label>
-						<input type="number" v-model.number="maintenanceForm.mileage" min="0" required />
-					</div>
+					<FormField label="Дата обслуживания" required field-id="maint-service_date">
+						<input id="maint-service_date" type="date" v-model="maintenanceForm.service_date" required />
+					</FormField>
+					<FormField label="Следующее ТО (дата)" field-id="maint-next_service_date">
+						<input id="maint-next_service_date" type="date" v-model="maintenanceForm.next_service_date" />
+					</FormField>
 				</div>
 				<div class="form-row">
-					<div class="form-group">
-						<label>Дата обслуживания <span class="required">*</span></label>
-						<input type="date" v-model="maintenanceForm.service_date" required />
-					</div>
-					<div class="form-group">
-						<label>Следующее ТО (дата)</label>
-						<input type="date" v-model="maintenanceForm.next_service_date" />
-					</div>
-				</div>
-				<div class="form-row">
-					<div class="form-group">
-						<label>Следующее ТО (пробег, км)</label>
-						<input type="number" v-model.number="maintenanceForm.next_service_mileage" min="0" />
-					</div>
-					<div class="form-group">
-						<label>Сервис</label>
-						<input type="text" v-model="maintenanceForm.service_provider" />
-					</div>
+					<FormField label="Следующее ТО (пробег, км)" field-id="maint-next_service_mileage">
+						<input id="maint-next_service_mileage" type="number" v-model.number="maintenanceForm.next_service_mileage" min="0" />
+					</FormField>
+					<FormField label="Сервис" field-id="maint-service_provider">
+						<input id="maint-service_provider" type="text" v-model="maintenanceForm.service_provider" />
+					</FormField>
 				</div>
 			</form>
 		</Modal>

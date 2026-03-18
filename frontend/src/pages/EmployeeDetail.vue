@@ -107,7 +107,7 @@ watch(() => route.params.id, loadEmployee, { immediate: true });
 <template>
 	<div class="employee-detail-page">
 		<Breadcrumbs v-if="employee" :items="breadcrumbItems" />
-		<div v-if="loading" class="loading">Загрузка данных...</div>
+		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка данных...</div>
 		<div v-else-if="error" class="error">{{ error }}</div>
 		<template v-else-if="employee">
 			<div class="page-header">

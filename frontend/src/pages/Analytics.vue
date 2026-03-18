@@ -5,13 +5,18 @@ import BarChart from '@/components/dashboard/BarChart.vue';
 import DoughnutChart from '@/components/dashboard/DoughnutChart.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import DataTable from '@/components/common/DataTable.vue';
+import FormField from '@/components/common/FormField.vue';
 import { transactionsApi } from '@/api/transactions';
 import { carsApi } from '@/api/cars';
 import { employeesApi } from '@/api/employees';
 import { formatCurrency, formatNumber } from '@/utils/helpers';
+import { useToast } from '@/composables/useToast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import type {
 	Transaction, Car, Employee, PaginatedResponse,
 } from '@/types';
+
+const toast = useToast();
 
 const loading = ref(true);
 const transactions = ref<Transaction[]>([]);
@@ -322,7 +327,7 @@ const loadData = async () => {
 		cars.value = carsRes?.data ?? [];
 		employees.value = employeesRes?.data ?? [];
 	} catch (error) {
-		console.error('Ошибка загрузки данных аналитики:', error);
+		toast.error(getApiErrorMessage(error) || 'Не удалось загрузить данные аналитики');
 	} finally {
 		loading.value = false;
 	}
@@ -337,19 +342,17 @@ onMounted(() => {
 	<div class="analytics-page">
 		<h1>Аналитика</h1>
 
-		<div v-if="loading" class="loading">Загрузка данных...</div>
+		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка данных...</div>
 		<div v-else class="analytics-content">
 			<div class="filters card">
 				<h3>Период</h3>
 				<div class="filters-row">
-					<div class="form-group">
-						<label>Дата от</label>
-						<input v-model="dateFrom" type="date" class="form-input" />
-					</div>
-					<div class="form-group">
-						<label>Дата до</label>
-						<input v-model="dateTo" type="date" class="form-input" />
-					</div>
+					<FormField label="Дата от" field-id="analytics-date-from">
+						<input id="analytics-date-from" v-model="dateFrom" type="date" class="form-input" />
+					</FormField>
+					<FormField label="Дата до" field-id="analytics-date-to">
+						<input id="analytics-date-to" v-model="dateTo" type="date" class="form-input" />
+					</FormField>
 					<AppButton variant="secondary" @click="resetPeriod">Сбросить период</AppButton>
 				</div>
 			</div>

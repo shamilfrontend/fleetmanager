@@ -15,6 +15,8 @@ import { maintenanceApi, type UpcomingMaintenance } from '@/api/maintenance';
 import { useCarsStore } from '@/stores/cars';
 import { useEmployeesStore } from '@/stores/employees';
 import { useAuthStore } from '@/stores/auth';
+import { useToast } from '@/composables/useToast';
+import { getApiErrorMessage } from '@/utils/apiError';
 import type {
 	Transaction, Car, Employee, Card, PaginatedResponse,
 } from '@/types';
@@ -28,6 +30,7 @@ interface Column {
 }
 
 const router = useRouter();
+const toast = useToast();
 const authStore = useAuthStore();
 const carsStore = useCarsStore();
 const employeesStore = useEmployeesStore();
@@ -266,7 +269,7 @@ const loadDashboardData = async () => {
 		carsStore.cars = carsList;
 		employeesStore.employees = employeesList;
 	} catch (error) {
-		console.error('Ошибка загрузки данных:', error);
+		toast.error(getApiErrorMessage(error) || 'Не удалось загрузить данные дашборда');
 	} finally {
 		loading.value = false;
 	}
@@ -279,7 +282,7 @@ onMounted(() => {
 
 <template>
 	<div class="dashboard">
-		<div v-if="loading" class="loading">Загрузка данных...</div>
+		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка данных...</div>
 		<template v-else>
 			<section class="dashboard-hero card">
 				<div class="dashboard-hero__left">

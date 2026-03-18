@@ -5,14 +5,21 @@ export interface ValidationRule {
 	minLength?: number
 	maxLength?: number
 	pattern?: RegExp
-	custom?: (value: unknown) => boolean | string
+	custom?: (value: unknown, context?: Record<string, unknown>) => boolean | string
+	/** Человекочитаемое имя поля для сообщений об ошибках */
+	label?: string
 }
 
 export interface ValidationErrors {
 	[key: string]: string
 }
 
-export const validateField = (value: unknown, rules: ValidationRule, fieldName: string): string | null => {
+export const validateField = (
+	value: unknown,
+	rules: ValidationRule,
+	fieldName: string,
+	context?: Record<string, unknown>,
+): string | null => {
 	if (rules.required && (value === null || value === undefined || value === '')) {
 		return `${fieldName} обязателен для заполнения`;
 	}
@@ -42,7 +49,7 @@ export const validateField = (value: unknown, rules: ValidationRule, fieldName: 
 	}
 
 	if (rules.custom) {
-		const result = rules.custom(value);
+		const result = rules.custom(value, context);
 		if (result !== true) {
 			return typeof result === 'string' ? result : `${fieldName} имеет неверное значение`;
 		}
@@ -58,7 +65,9 @@ export const validateForm = <T extends Record<string, unknown>>(
 	const errors: ValidationErrors = {};
 
 	for (const [field, fieldRules] of Object.entries(rules)) {
-		const error = validateField(data[field], fieldRules, field);
+		const rule = fieldRules as ValidationRule;
+		const fieldLabel = rule.label ?? String(field);
+		const error = validateField(data[field], fieldRules, fieldLabel, data);
 		if (error) {
 			errors[field] = error;
 		}
