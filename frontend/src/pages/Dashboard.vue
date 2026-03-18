@@ -79,8 +79,8 @@ const carStatusData = computed(() => {
 		datasets: [{
 			label: 'Количество',
 			data: Object.values(statusCounts),
-			backgroundColor: [chartColors.success, chartColors.warning, chartColors.palette[2]],
-			borderColor: [chartColors.success, chartColors.warning, chartColors.palette[2]],
+			backgroundColor: [chartColors.palette[2], chartColors.warning, chartColors.success],
+			borderColor: [chartColors.palette[2], chartColors.warning, chartColors.success],
 		}],
 	};
 });
@@ -284,34 +284,108 @@ onMounted(() => {
 	<div class="dashboard">
 		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка данных...</div>
 		<template v-else>
-			<section class="dashboard-hero card">
-				<div class="dashboard-hero__left">
-					<p class="dashboard-hero__subtitle">Ежемесячный обзор парка</p>
-					<h2 class="dashboard-hero__title">
-						Поздравляем, {{ authStore.user?.email || 'коллега' }}!
-					</h2>
-					<p class="dashboard-hero__text">
-						В этом месяце расходы по топливным картам и состоянию парка под контролем.
-					</p>
-					<AppButton variant="primary" @click="router.push({ name: 'Analytics' })">
-						Открыть аналитику
+			<div class="stats-grid">
+				<div class="stat-card card">
+					<div class="stat-icon">🚗</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ stats.cars }}</h3>
+						<p class="stat-label">Автомобилей</p>
+						<p v-if="stats.cars > 0" class="stat-detail">
+							Активных: {{ stats.activeCars }} ({{ Math.round((stats.activeCars / stats.cars) * 100) }}%)
+						</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon">👥</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ stats.employees }}</h3>
+						<p class="stat-label">Сотрудников</p>
+						<p v-if="stats.employees > 0" class="stat-detail">
+							Активных: {{ stats.activeEmployees }}
+						</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon">💳</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ formatCurrency(stats.balance) }}</h3>
+						<p class="stat-label">Баланс карт</p>
+						<p v-if="stats.cards > 0" class="stat-detail">
+							Карт: {{ stats.cards }} | Средний баланс: {{ formatCurrency(stats.avgBalance) }}
+						</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon">📝</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ stats.transactions }}</h3>
+						<p class="stat-label">Транзакций</p>
+						<p v-if="stats.monthlyExpenses > 0" class="stat-detail">
+							За месяц: {{ formatCurrency(stats.monthlyExpenses) }}
+						</p>
+					</div>
+				</div>
+			</div>
+			<!-- Быстрые действия -->
+			<div class="quick-actions card">
+				<h2>Быстрые действия</h2>
+				<div class="actions-grid">
+					<AppButton variant="secondary" block class="action-btn" @click="router.push({ name: 'Cars' })">
+						<template #left><span class="action-icon">🚗</span></template>
+						Добавить автомобиль
+					</AppButton>
+					<AppButton
+						v-if="authStore.isManager || authStore.isAdmin"
+						variant="secondary"
+						block
+						class="action-btn"
+						@click="router.push({ name: 'Employees' })"
+					>
+						<template #left><span class="action-icon">👤</span></template>
+						Добавить сотрудника
+					</AppButton>
+					<AppButton
+						v-if="authStore.isManager || authStore.isAdmin"
+						variant="secondary"
+						block
+						class="action-btn"
+						@click="router.push({ name: 'Cards' })"
+					>
+						<template #left><span class="action-icon">💳</span></template>
+						Добавить карту
+					</AppButton>
+					<AppButton
+						v-if="authStore.isManager || authStore.isAdmin"
+						variant="secondary"
+						block
+						class="action-btn"
+						@click="router.push({ name: 'Transactions' })"
+					>
+						<template #left><span class="action-icon">📝</span></template>
+						Новая транзакция
+					</AppButton>
+					<AppButton
+						v-if="authStore.isManager || authStore.isAdmin"
+						variant="secondary"
+						block
+						class="action-btn"
+						@click="router.push({ name: 'LinkBuilder' })"
+					>
+						<template #left><span class="action-icon">🔧</span></template>
+						Конструктор связей
+					</AppButton>
+					<AppButton
+						v-if="authStore.isManager || authStore.isAdmin"
+						variant="secondary"
+						block
+						class="action-btn"
+						@click="router.push({ name: 'Analytics' })"
+					>
+						<template #left><span class="action-icon">📈</span></template>
+						Аналитика
 					</AppButton>
 				</div>
-				<div class="dashboard-hero__right">
-					<div class="hero-metric">
-						<span class="hero-metric__label">Расходы за месяц</span>
-						<span class="hero-metric__value">
-							{{ formatCurrency(stats.monthlyExpenses) }}
-						</span>
-					</div>
-					<div class="hero-metric hero-metric--secondary">
-						<span class="hero-metric__label">Баланс по всем картам</span>
-						<span class="hero-metric__value">
-							{{ formatCurrency(stats.balance) }}
-						</span>
-					</div>
-				</div>
-			</section>
+			</div>
 
 			<!-- Уведомления о предстоящем ТО -->
 			<div v-if="upcomingMaintenance.length > 0" class="maintenance-alerts card">
@@ -426,110 +500,6 @@ onMounted(() => {
 				</div>
 			</div>
 
-			<!-- Быстрые действия -->
-			<div class="quick-actions card">
-				<h2>Быстрые действия</h2>
-				<div class="actions-grid">
-					<AppButton variant="secondary" block class="action-btn" @click="router.push({ name: 'Cars' })">
-						<template #left><span class="action-icon">🚗</span></template>
-						Добавить автомобиль
-					</AppButton>
-					<AppButton
-						v-if="authStore.isManager || authStore.isAdmin"
-						variant="secondary"
-						block
-						class="action-btn"
-						@click="router.push({ name: 'Employees' })"
-					>
-						<template #left><span class="action-icon">👤</span></template>
-						Добавить сотрудника
-					</AppButton>
-					<AppButton
-						v-if="authStore.isManager || authStore.isAdmin"
-						variant="secondary"
-						block
-						class="action-btn"
-						@click="router.push({ name: 'Cards' })"
-					>
-						<template #left><span class="action-icon">💳</span></template>
-						Добавить карту
-					</AppButton>
-					<AppButton
-						v-if="authStore.isManager || authStore.isAdmin"
-						variant="secondary"
-						block
-						class="action-btn"
-						@click="router.push({ name: 'Transactions' })"
-					>
-						<template #left><span class="action-icon">📝</span></template>
-						Новая транзакция
-					</AppButton>
-					<AppButton
-						v-if="authStore.isManager || authStore.isAdmin"
-						variant="secondary"
-						block
-						class="action-btn"
-						@click="router.push({ name: 'LinkBuilder' })"
-					>
-						<template #left><span class="action-icon">🔧</span></template>
-						Конструктор связей
-					</AppButton>
-					<AppButton
-						v-if="authStore.isManager || authStore.isAdmin"
-						variant="secondary"
-						block
-						class="action-btn"
-						@click="router.push({ name: 'Analytics' })"
-					>
-						<template #left><span class="action-icon">📈</span></template>
-						Аналитика
-					</AppButton>
-				</div>
-			</div>
-
-			<div class="stats-grid">
-				<div class="stat-card card">
-					<div class="stat-icon">🚗</div>
-					<div class="stat-info">
-						<h3 class="stat-value">{{ stats.cars }}</h3>
-						<p class="stat-label">Автомобилей</p>
-						<p v-if="stats.cars > 0" class="stat-detail">
-							Активных: {{ stats.activeCars }} ({{ Math.round((stats.activeCars / stats.cars) * 100) }}%)
-						</p>
-					</div>
-				</div>
-				<div class="stat-card card">
-					<div class="stat-icon">👥</div>
-					<div class="stat-info">
-						<h3 class="stat-value">{{ stats.employees }}</h3>
-						<p class="stat-label">Сотрудников</p>
-						<p v-if="stats.employees > 0" class="stat-detail">
-							Активных: {{ stats.activeEmployees }}
-						</p>
-					</div>
-				</div>
-				<div class="stat-card card">
-					<div class="stat-icon">💳</div>
-					<div class="stat-info">
-						<h3 class="stat-value">{{ formatCurrency(stats.balance) }}</h3>
-						<p class="stat-label">Баланс карт</p>
-						<p v-if="stats.cards > 0" class="stat-detail">
-							Карт: {{ stats.cards }} | Средний баланс: {{ formatCurrency(stats.avgBalance) }}
-						</p>
-					</div>
-				</div>
-				<div class="stat-card card">
-					<div class="stat-icon">📝</div>
-					<div class="stat-info">
-						<h3 class="stat-value">{{ stats.transactions }}</h3>
-						<p class="stat-label">Транзакций</p>
-						<p v-if="stats.monthlyExpenses > 0" class="stat-detail">
-							За месяц: {{ formatCurrency(stats.monthlyExpenses) }}
-						</p>
-					</div>
-				</div>
-			</div>
-
 			<div class="dashboard-content">
 				<div class="card">
 					<h2>Статус автомобилей</h2>
@@ -605,30 +575,6 @@ $chart-warning-accent: #ed6c02;
 		min-width: 220px;
 		align-items: flex-end;
 	}
-}
-
-.hero-metric {
-	padding: $spacing-md $spacing-lg;
-	border-radius: $radius-lg;
-	background: linear-gradient(135deg, rgba(115, 103, 240, 0.12), rgba(0, 207, 232, 0.16));
-	text-align: right;
-
-	&--secondary {
-		background: $bg-subtle;
-	}
-}
-
-.hero-metric__label {
-	display: block;
-	font-size: $font-size-xs;
-	text-transform: uppercase;
-	color: $text-muted;
-	margin-bottom: $spacing-xs;
-}
-
-.hero-metric__value {
-	font-size: $font-size-2xl;
-	font-weight: $font-weight-semibold;
 }
 
 .stats-grid {

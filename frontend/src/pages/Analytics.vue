@@ -107,8 +107,8 @@ const carStatusData = computed(() => {
 		datasets: [{
 			label: 'Количество',
 			data: Object.values(statusCounts),
-			backgroundColor: ['#27ae60', '#e74c3c', '#f39c12'],
-			borderColor: ['#27ae60', '#e74c3c', '#f39c12'],
+			backgroundColor: ['#f39c12', '#e74c3c', '#27ae60'],
+			borderColor: ['#f39c12', '#e74c3c', '#27ae60'],
 		}],
 	};
 });
