@@ -1,16 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+
 import { useAuthStore } from '@/stores/auth';
 import NavIcon from '@/components/common/NavIcon.vue';
 
 const route = useRoute();
 const authStore = useAuthStore();
-const isCollapsed = ref(false);
-
-const toggleSidebar = () => {
-	isCollapsed.value = !isCollapsed.value;
-};
 
 const isNavItemActive = (path: string) => {
 	const current = route.path;
@@ -39,20 +35,12 @@ const navItems = computed(() => {
 </script>
 
 <template>
-	<aside class="sidebar" :class="{ collapsed: isCollapsed }">
+	<aside class="sidebar">
 		<div class="sidebar-header">
 			<div class="brand">
 				<span class="brand-logo">FM</span>
-				<span v-if="!isCollapsed" class="brand-text">FleetManager</span>
+				<span class="brand-text">FleetManager</span>
 			</div>
-			<button
-				type="button"
-				class="toggle-btn"
-				aria-label="Свернуть меню"
-				@click="toggleSidebar"
-			>
-				<span class="toggle-icon" :class="{ collapsed: isCollapsed }">⟨⟩</span>
-			</button>
 		</div>
 		<nav class="sidebar-nav">
 			<div class="nav-list">
@@ -64,7 +52,7 @@ const navItems = computed(() => {
 					:class="{ active: isNavItemActive(item.path) }"
 				>
 					<NavIcon :name="item.icon" />
-					<span v-if="!isCollapsed" class="nav-text">{{ item.label }}</span>
+					<span class="nav-text">{{ item.label }}</span>
 				</router-link>
 			</div>
 		</nav>
@@ -75,6 +63,10 @@ const navItems = computed(() => {
 @import '@/assets/scss/variables.scss';
 
 .sidebar {
+	position: sticky;
+	top: 0;
+	height: 100vh;
+	align-self: start;
 	width: 270px;
 	background: linear-gradient(180deg, $sidebar-bg 0%, $sidebar-bg-alt 100%);
 	box-shadow: $shadow-md;
@@ -83,18 +75,10 @@ const navItems = computed(() => {
 	flex-direction: column;
 	flex-shrink: 0;
 	color: $nav-text;
-
-	&.collapsed {
-		width: 80px;
-
-		.sidebar-header {
-			justify-content: center;
-		}
-	}
 }
 
 .sidebar-header {
-	padding: $spacing-lg $spacing-md;
+	padding: $spacing-lg;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -130,34 +114,11 @@ const navItems = computed(() => {
 	text-overflow: ellipsis;
 }
 
-.toggle-btn {
-	background: transparent;
-	border: none;
-	cursor: pointer;
-	width: 32px;
-	height: 32px;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	color: $nav-text-muted;
-	border-radius: $radius-sm;
-	transition: background-color $transition-fast, color $transition-fast, transform $transition-fast;
-
-	&:hover {
-		background: $nav-bg-hover;
-		color: $nav-text;
-	}
-}
-
 .toggle-icon {
 	display: inline-block;
 	font-size: $font-size-sm;
 	transform: rotate(180deg);
 	transition: transform $transition-base;
-
-	&.collapsed {
-		transform: rotate(0deg);
-	}
 }
 
 .sidebar-nav {
