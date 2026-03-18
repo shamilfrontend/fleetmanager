@@ -6,6 +6,7 @@ import DoughnutChart from '@/components/dashboard/DoughnutChart.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import DataTable from '@/components/common/DataTable.vue';
 import FormField from '@/components/common/FormField.vue';
+import AppDatePicker from '@/components/common/AppDatePicker.vue';
 import { transactionsApi } from '@/api/transactions';
 import { carsApi } from '@/api/cars';
 import { employeesApi } from '@/api/employees';
@@ -348,10 +349,20 @@ onMounted(() => {
 				<h3>Период</h3>
 				<div class="filters-row">
 					<FormField label="Дата от" field-id="analytics-date-from">
-						<input id="analytics-date-from" v-model="dateFrom" type="date" class="form-input" />
+						<AppDatePicker
+							v-model="dateFrom"
+							placeholder="Выберите дату"
+							clearable
+							field-id="analytics-date-from"
+						/>
 					</FormField>
 					<FormField label="Дата до" field-id="analytics-date-to">
-						<input id="analytics-date-to" v-model="dateTo" type="date" class="form-input" />
+						<AppDatePicker
+							v-model="dateTo"
+							placeholder="Выберите дату"
+							clearable
+							field-id="analytics-date-to"
+						/>
 					</FormField>
 					<AppButton variant="secondary" @click="resetPeriod">Сбросить период</AppButton>
 				</div>

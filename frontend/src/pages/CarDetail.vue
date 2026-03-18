@@ -13,7 +13,7 @@ import { carsApi } from '@/api/cars';
 import { employeesApi } from '@/api/employees';
 import { cardsApi } from '@/api/cards';
 import { maintenanceApi, type MaintenanceHistory } from '@/api/maintenance';
-import { formatDate, formatCurrency, formatNumber } from '@/utils/helpers';
+import { formatDate, formatCurrency, formatNumber, formatCardNumber } from '@/utils/helpers';
 import { API_ORIGIN } from '@/utils/constants';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
@@ -380,7 +380,7 @@ onMounted(() => {
 							<span class="info-label">Карта:</span>
 							<span class="info-value">
 								<router-link :to="`/cards/${assignedCard._id}`" class="link">
-									{{ assignedCard.card_number }}
+									{{ formatCardNumber(assignedCard.card_number) }}
 								</router-link>
 							</span>
 						</div>

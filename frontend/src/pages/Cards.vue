@@ -22,6 +22,7 @@ import { runBulkInBatches } from '@/utils/runBulkInBatches';
 import { filterData } from '@/utils/filter';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import { getCardStatusLabel } from '@/utils/labels';
+import { formatCardNumber, normalizeCardNumber } from '@/utils/helpers';
 import type { Card, Employee, Car } from '@/types';
 
 const router = useRouter();
@@ -320,6 +321,7 @@ const handleSave = async () => {
 		// Преобразуем пустые строки в undefined
 		const dataToSave = {
 			...formData.value,
+			card_number: normalizeCardNumber(formData.value.card_number ?? ''),
 			assigned_to: formData.value.assigned_to || undefined,
 			assigned_car: formData.value.assigned_car || undefined,
 		};
@@ -498,7 +500,7 @@ onMounted(async () => {
 				<template #cell-card_number="{ row }">
 					<div class="entity-cell">
 						<span class="entity-icon" aria-hidden="true">💳</span>
-						<span class="entity-name">{{ (row as Card).card_number }}</span>
+						<span class="entity-name">{{ formatCardNumber((row as Card).card_number) }}</span>
 					</div>
 				</template>
 				<template #cell-status="{ value }">

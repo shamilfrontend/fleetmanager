@@ -24,3 +24,14 @@ export const formatCurrency = (amount: number): string => new Intl.NumberFormat(
 }).format(amount);
 
 export const formatNumber = (num: number): string => new Intl.NumberFormat('ru-RU').format(num);
+
+/** Оставляет только цифры (для отправки в API/БД). */
+export const normalizeCardNumber = (cardNumber: string): string =>
+	(String(cardNumber ?? '').replace(/\D/g, ''));
+
+/** Форматирует номер карты: XXXX XXXX XXXX XXXX. */
+export const formatCardNumber = (cardNumber: string): string => {
+	const digits = normalizeCardNumber(cardNumber);
+	if (!digits) return '';
+	return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+};

@@ -6,7 +6,7 @@ import DataTable from '@/components/common/DataTable.vue';
 import DoughnutChart from '@/components/dashboard/DoughnutChart.vue';
 import LineChart from '@/components/dashboard/LineChart.vue';
 import BarChart from '@/components/dashboard/BarChart.vue';
-import { formatCurrency, formatDate } from '@/utils/helpers';
+import { formatCurrency, formatDate, formatCardNumber } from '@/utils/helpers';
 import { transactionsApi } from '@/api/transactions';
 import { carsApi } from '@/api/cars';
 import { employeesApi } from '@/api/employees';
@@ -367,7 +367,7 @@ onMounted(() => {
 							<div class="alert-icon">{{ card.balance < 1000 ? '🔴' : '🟡' }}</div>
 							<div class="alert-content">
 								<div class="alert-card">
-									Карта {{ card.card_number }}
+									Карта {{ formatCardNumber(card.card_number) }}
 								</div>
 								<div class="alert-details">
 									Баланс: {{ formatCurrency(card.balance) }}
@@ -395,7 +395,7 @@ onMounted(() => {
 						>
 							<div class="alert-icon">{{ isCardExpiringSoon(card) ? '🔴' : '🟡' }}</div>
 							<div class="alert-content">
-								<div class="alert-card">Карта {{ card.card_number }}</div>
+								<div class="alert-card">Карта {{ formatCardNumber(card.card_number) }}</div>
 								<div class="alert-details">
 									Срок действия до {{ formatDate(card.expiry_date) }}
 								</div>

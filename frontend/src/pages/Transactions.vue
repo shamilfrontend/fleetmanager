@@ -11,6 +11,7 @@ import Pagination from '@/components/common/Pagination.vue';
 import SearchInput from '@/components/common/SearchInput.vue';
 import FormField from '@/components/common/FormField.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
+import AppDatePicker from '@/components/common/AppDatePicker.vue';
 import { transactionsApi, type TransactionFilters } from '@/api/transactions';
 import { employeesApi } from '@/api/employees';
 import { carsApi } from '@/api/cars';
@@ -18,6 +19,7 @@ import { cardsApi } from '@/api/cards';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { formatCardNumber } from '@/utils/helpers';
 import { exportToCSV, exportToExcel } from '@/utils/export';
 import { filterData } from '@/utils/filter';
 import type {
@@ -60,7 +62,7 @@ const statsCancelled = ref<number | null>(null);
 const cardOptions = computed(() =>
 	cards.value.map((c) => ({
 		value: c._id,
-		label: `${c.card_number} (${c.type === 'fuel' ? 'Топливная' : 'Сервисная'})`,
+		label: `${formatCardNumber(c.card_number)} (${c.type === 'fuel' ? 'Топливная' : 'Сервисная'})`,
 	})));
 const employeeOptions = computed(() =>
 	employees.value.map((e) => ({ value: e._id, label: e.full_name })));
@@ -434,12 +436,22 @@ const loadFormData = async () => {
 					<SearchInput v-model="searchQuery" placeholder="Поиск по сумме, месту, типу топлива..." />
 				</div>
 				<div class="form-group">
-					<label>Дата от</label>
-					<input v-model="filters.dateFrom" type="date" class="form-input" />
+					<label for="transactions-date-from">Дата от</label>
+					<AppDatePicker
+						v-model="filters.dateFrom"
+						placeholder="Выберите дату"
+						clearable
+						field-id="transactions-date-from"
+					/>
 				</div>
 				<div class="form-group">
-					<label>Дата до</label>
-					<input v-model="filters.dateTo" type="date" class="form-input" />
+					<label for="transactions-date-to">Дата до</label>
+					<AppDatePicker
+						v-model="filters.dateTo"
+						placeholder="Выберите дату"
+						clearable
+						field-id="transactions-date-to"
+					/>
 				</div>
 				<div class="form-group">
 					<label>Сотрудник</label>

@@ -10,6 +10,7 @@ import { cardsApi } from '@/api/cards';
 import { carsApi } from '@/api/cars';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { formatCardNumber } from '@/utils/helpers';
 
 interface PendingChange {
 	type: 'assign' | 'unassign'
@@ -34,7 +35,7 @@ const confirm = useConfirm();
 const loadCardOptions = async (params: { page: number; limit: number }): Promise<{ options: SelectOption[]; total: number }> => {
 	const res = await cardsApi.getAll({ page: params.page, limit: params.limit });
 	return {
-		options: res.data.map((c) => ({ value: c._id, label: c.card_number })),
+		options: res.data.map((c) => ({ value: c._id, label: formatCardNumber(c.card_number) })),
 		total: res.total,
 	};
 };

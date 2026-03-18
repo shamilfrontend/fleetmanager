@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import AppButton from '@/components/common/AppButton.vue';
+import AppDropdown, { type DropdownItem } from '@/components/common/AppDropdown.vue';
+import { formatCardNumber } from '@/utils/helpers';
 
 interface Column {
 	key: string
@@ -148,6 +149,14 @@ const getRowId = (row: Record<string, unknown> | null, index: number) => {
 	}
 };
 
+const getActionDropdownItems = <T,>(row: T, actions: Action<T>[]): DropdownItem[] =>
+	actions.map((a) => ({
+		id: a.name,
+		label: a.label,
+		type: a.type,
+		onClick: () => a.handler(row),
+	}));
+
 // Функция для безопасного получения значения ячейки
 const getCellValue = (row: Record<string, unknown> | null, key: string) => {
 	if (!row || typeof row !== 'object') {
@@ -212,7 +221,7 @@ const formatValue = (value: unknown, format?: string) => {
 		}
 		// Если это объект с полем card_number (populate Card), возвращаем номер карты
 		if (value.card_number) {
-			return String(value.card_number);
+			return formatCardNumber(String(value.card_number));
 		}
 		// Если это объект с полем _id, это скорее всего populate без нужных полей
 		if (value._id) {
@@ -325,15 +334,7 @@ const formatValue = (value: unknown, format?: string) => {
 						</td>
 					</template>
 					<td v-if="actions.length > 0" class="actions-cell">
-						<AppButton
-							v-for="action in actions"
-							:key="action.name"
-							size="sm"
-							:variant="action.type === 'danger' ? 'danger' : action.type === 'primary' ? 'primary' : 'secondary'"
-							@click="action.handler(row)"
-						>
-							{{ action.label }}
-						</AppButton>
+						<AppDropdown :items="getActionDropdownItems(row, actions)" />
 					</td>
 				</tr>
 			</tbody>
@@ -437,8 +438,8 @@ tbody tr.selected {
 }
 
 .actions-cell {
-	display: flex;
-	flex-wrap: wrap;
-	gap: $spacing-sm;
+	width: 48px;
+	text-align: center;
+	white-space: nowrap;
 }
 </style>

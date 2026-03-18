@@ -6,7 +6,7 @@ import AppButton from '@/components/common/AppButton.vue';
 import Confirm from '@/components/common/Confirm.vue';
 import Breadcrumbs from '@/components/common/Breadcrumbs.vue';
 import { useConfirm } from '@/composables/useConfirm';
-import { formatCurrency } from '@/utils/helpers';
+import { formatCurrency, formatCardNumber } from '@/utils/helpers';
 import { toast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { getCardStatusLabel } from '@/utils/labels';
@@ -25,7 +25,7 @@ const breadcrumbItems = computed(() => {
 	if (!c) return [];
 	return [
 		{ label: 'Топливные карты', to: '/cards' },
-		{ label: c.card_number },
+		{ label: formatCardNumber(c.card_number) },
 	];
 });
 
@@ -118,7 +118,7 @@ watch(() => route.params.id, loadCard, { immediate: true });
 					<AppButton variant="secondary" outline @click="$router.push({ name: 'Cards' })">
 						← Назад к списку
 					</AppButton>
-					<h1>{{ card.card_number }}</h1>
+					<h1>{{ formatCardNumber(card.card_number) }}</h1>
 					<p class="type-subtitle">{{ card.type === 'fuel' ? 'Топливная карта' : 'Сервисная карта' }}</p>
 				</div>
 				<div class="header-actions">
@@ -133,7 +133,7 @@ watch(() => route.params.id, loadCard, { immediate: true });
 					<div class="info-list">
 						<div class="info-item">
 							<span class="info-label">Номер карты:</span>
-							<span class="info-value">{{ card.card_number }}</span>
+							<span class="info-value">{{ formatCardNumber(card.card_number) }}</span>
 						</div>
 						<div class="info-item">
 							<span class="info-label">Тип:</span>

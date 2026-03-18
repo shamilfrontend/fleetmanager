@@ -8,6 +8,7 @@ import AppButton from '@/components/common/AppButton.vue';
 import Confirm from '@/components/common/Confirm.vue';
 import Breadcrumbs from '@/components/common/Breadcrumbs.vue';
 import { useConfirm } from '@/composables/useConfirm';
+import { formatCardNumber } from '@/utils/helpers';
 import type { Employee } from '@/types';
 
 const route = useRoute();
@@ -166,7 +167,7 @@ watch(() => route.params.id, loadEmployee, { immediate: true });
 							<span class="info-label">Карта:</span>
 							<span class="info-value">
 								<router-link v-if="cardId" :to="`/cards/${cardId}`" class="link">
-									{{ cardNumber }}
+									{{ formatCardNumber(cardNumber) }}
 								</router-link>
 								<span v-else class="text-muted">Не назначена</span>
 							</span>

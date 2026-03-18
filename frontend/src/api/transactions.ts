@@ -2,8 +2,8 @@ import apiClient from './axios';
 import type { Transaction, PaginatedResponse } from '@/types';
 
 export interface TransactionFilters {
-	dateFrom?: string
-	dateTo?: string
+	dateFrom?: string | null
+	dateTo?: string | null
 	employeeId?: string
 	carId?: string
 	cardId?: string
