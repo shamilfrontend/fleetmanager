@@ -832,7 +832,11 @@ $chart-warning-accent: #ed6c02;
 	border: 1px solid $border-light;
 	border-radius: $radius;
 	cursor: pointer;
-	transition: transform $transition-fast, box-shadow $transition-fast, border-color $transition-fast, background-color $transition-fast;
+	transition:
+		transform $transition-fast,
+		box-shadow $transition-fast,
+		border-color $transition-fast,
+		background-color $transition-fast;
 	text-align: center;
 
 	&:hover {
