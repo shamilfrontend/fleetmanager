@@ -21,6 +21,7 @@ import { getApiErrorMessage } from '@/utils/apiError';
 import { runBulkInBatches } from '@/utils/runBulkInBatches';
 import { filterData } from '@/utils/filter';
 import { exportToCSV, exportToExcel } from '@/utils/export';
+import { getCardStatusLabel } from '@/utils/labels';
 import type { Card, Employee, Car } from '@/types';
 
 const router = useRouter();
@@ -50,6 +51,11 @@ const bulkProgress = ref({ done: 0, total: 0 });
 const bulkSaving = ref(false);
 
 const BULK_BATCH_SIZE = 8;
+
+// Статистика для карточек (Vuexy-style)
+const statsActive = ref<number | null>(null);
+const statsBlocked = ref<number | null>(null);
+const statsExpired = ref<number | null>(null);
 
 // Опции для селектов
 const cardTypeOptions = [
@@ -215,7 +221,7 @@ const getCarInfo = (card: Card) => {
 };
 
 const columns = [
-	{ key: 'card_number', label: 'Номер карты' },
+	{ key: 'card_number', label: 'Карта' },
 	{ key: 'type', label: 'Тип' },
 	{ key: 'balance', label: 'Баланс', format: 'currency' },
 	{ key: 'limit', label: 'Лимит', format: 'currency' },
@@ -348,9 +354,27 @@ const handlePrint = () => {
 	if (typeof window !== 'undefined') window.print();
 };
 
+const loadStats = async () => {
+	try {
+		const [activeRes, blockedRes, expiredRes] = await Promise.all([
+			cardsApi.getAll({ status: 'active', page: 1, limit: 1 }),
+			cardsApi.getAll({ status: 'blocked', page: 1, limit: 1 }),
+			cardsApi.getAll({ status: 'expired', page: 1, limit: 1 }),
+		]);
+		statsActive.value = activeRes.total;
+		statsBlocked.value = blockedRes.total;
+		statsExpired.value = expiredRes.total;
+	} catch {
+		statsActive.value = 0;
+		statsBlocked.value = 0;
+		statsExpired.value = 0;
+	}
+};
+
 onMounted(async () => {
 	await loadFilterData();
 	await fetchCards();
+	await loadStats();
 	const editId = route.query.edit as string;
 	if (editId) {
 		const cardItem = cards.value.find((c) => c._id === editId);
@@ -391,8 +415,42 @@ onMounted(async () => {
 
 		<div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка...</div>
 		<template v-else>
+			<div class="stats-grid">
+				<div class="stat-card card">
+					<div class="stat-icon" aria-hidden="true">💳</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ totalCards }}</h3>
+						<p class="stat-label">Всего карт</p>
+						<p class="stat-detail">В системе</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon" aria-hidden="true">✓</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ statsActive !== null ? statsActive : '—' }}</h3>
+						<p class="stat-label">Активные</p>
+						<p class="stat-detail">Доступны к использованию</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon" aria-hidden="true">🔒</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ statsBlocked !== null ? statsBlocked : '—' }}</h3>
+						<p class="stat-label">Заблокированы</p>
+						<p class="stat-detail">Временно недоступны</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon" aria-hidden="true">○</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ statsExpired !== null ? statsExpired : '—' }}</h3>
+						<p class="stat-label">Истекли</p>
+						<p class="stat-detail">Срок действия</p>
+					</div>
+				</div>
+			</div>
 			<div class="filters card">
-				<h3>Фильтры</h3>
+				<h4 class="filters-title">Фильтры</h4>
 				<div class="filters-grid">
 					<div class="form-group">
 						<label>Поиск</label>
@@ -437,6 +495,17 @@ onMounted(async () => {
 				:selected-rows="selectedCards"
 				@update:selected-rows="selectedCards = $event"
 			>
+				<template #cell-card_number="{ row }">
+					<div class="entity-cell">
+						<span class="entity-icon" aria-hidden="true">💳</span>
+						<span class="entity-name">{{ (row as Card).card_number }}</span>
+					</div>
+				</template>
+				<template #cell-status="{ value }">
+					<span class="status-badge" :class="value === 'active' ? 'status-active' : value === 'blocked' ? 'status-blocked' : 'status-expired'">
+						{{ getCardStatusLabel(value) }}
+					</span>
+				</template>
 				<template #empty>
 					<div class="table-empty-state">
 						<p class="table-empty-state__text">Нет карт</p>
@@ -568,6 +637,8 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="scss">
+@import '@/assets/scss/variables.scss';
+
 .page-header {
 	display: flex;
 	justify-content: space-between;
@@ -588,6 +659,64 @@ onMounted(async () => {
 .loading {
 	padding: $spacing-lg;
 	text-align: center;
+}
+
+.stats-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: $spacing-md;
+	margin-bottom: $spacing-lg;
+}
+
+.stat-card {
+	display: flex;
+	align-items: center;
+	gap: $spacing-md;
+	padding: $spacing-lg;
+}
+
+.stat-icon {
+	font-size: $font-size-2xl;
+	width: 48px;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba($primary-color, 0.1);
+	border-radius: 50%;
+	color: $primary-color;
+}
+
+.stat-value {
+	font-size: $font-size-2xl;
+	font-weight: $font-weight-semibold;
+	color: $text-primary;
+	letter-spacing: $letter-spacing-tight;
+	margin: 0 0 $spacing-xs 0;
+}
+
+.stat-label {
+	color: $text-muted;
+	font-size: $font-size-sm;
+	margin: 0;
+}
+
+.stat-detail {
+	color: $text-secondary;
+	font-size: $font-size-xs;
+	margin: $spacing-xs 0 0 0;
+}
+
+.filters {
+	margin-bottom: $spacing-lg;
+	padding: $spacing-md $spacing-lg;
+}
+
+.filters-title {
+	margin: 0 0 $spacing-md 0;
+	font-size: $font-size-base;
+	font-weight: $font-weight-semibold;
+	color: $text-primary;
 }
 
 .card-form {
@@ -628,29 +757,85 @@ label {
 .no-results {
 	padding: $spacing-xl;
 	text-align: center;
-	color: #666;
-	background: white;
+	color: $text-secondary;
+	background: $bg-elevated;
 	border-radius: $border-radius;
 	box-shadow: $shadow-sm;
 }
 
-.table-controls,
-.filters {
-	margin-bottom: $spacing-lg;
-	padding: $spacing-lg;
+.entity-cell {
+	display: flex;
+	align-items: center;
+	gap: $spacing-md;
+}
 
-	h3 {
-		margin-bottom: $spacing-md;
-		font-size: $font-size-lg;
-		color: $text-primary;
+.entity-icon {
+	font-size: $font-size-lg;
+	width: 36px;
+	height: 36px;
+	min-width: 36px;
+	border-radius: 50%;
+	background: $primary-light;
+	color: $primary-dark;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.entity-name {
+	font-weight: $font-weight-medium;
+	color: $text-primary;
+}
+
+.status-badge {
+	display: inline-block;
+	padding: $spacing-xs $spacing-sm;
+	border-radius: $radius-sm;
+	font-size: $font-size-xs;
+	font-weight: $font-weight-medium;
+
+	&.status-active {
+		background: $success-light;
+		color: $success;
 	}
+	&.status-blocked {
+		background: $warning-light;
+		color: $warning;
+	}
+	&.status-expired {
+		background: $bg-subtle;
+		color: $text-muted;
+	}
+}
+
+.table-empty-state {
+	padding: $spacing-xl;
+	text-align: center;
+
+	&__text {
+		font-size: $font-size-base;
+		font-weight: $font-weight-medium;
+		color: $text-primary;
+		margin: 0 0 $spacing-xs 0;
+	}
+
+	&__hint {
+		font-size: $font-size-sm;
+		color: $text-muted;
+		margin: 0 0 $spacing-md 0;
+	}
+}
+
+.table-controls {
+	margin-bottom: $spacing-md;
+	padding: $spacing-md;
 }
 
 .filters-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	gap: $spacing-md;
-	margin-bottom: $spacing-md;
+	margin-bottom: $spacing-sm;
 }
 
 .filters-actions {

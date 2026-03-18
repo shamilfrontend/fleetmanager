@@ -51,6 +51,11 @@ const bulkStatusForm = ref({
 	status: 'completed',
 });
 
+// Статистика для карточек (Vuexy-style)
+const statsCompleted = ref<number | null>(null);
+const statsPending = ref<number | null>(null);
+const statsCancelled = ref<number | null>(null);
+
 // Опции для селектов формы и фильтров
 const cardOptions = computed(() =>
 	cards.value.map((c) => ({
@@ -326,9 +331,36 @@ const handlePrint = () => {
 	if (typeof window !== 'undefined') window.print();
 };
 
+const loadStats = async () => {
+	try {
+		const [completedRes, pendingRes, cancelledRes] = await Promise.all([
+			transactionsApi.getAll({ status: 'completed', page: 1, limit: 1 }),
+			transactionsApi.getAll({ status: 'pending', page: 1, limit: 1 }),
+			transactionsApi.getAll({ status: 'cancelled', page: 1, limit: 1 }),
+		]);
+		statsCompleted.value = completedRes.total;
+		statsPending.value = pendingRes.total;
+		statsCancelled.value = cancelledRes.total;
+	} catch {
+		statsCompleted.value = 0;
+		statsPending.value = 0;
+		statsCancelled.value = 0;
+	}
+};
+
+const getTransactionStatusLabel = (status: string) => {
+	const map: Record<string, string> = {
+		completed: 'Завершена',
+		pending: 'В ожидании',
+		cancelled: 'Отменена',
+	};
+	return map[status] ?? status;
+};
+
 onMounted(async () => {
 	await loadFilterData();
 	await fetchTransactions();
+	await loadStats();
 });
 
 // Загружаем данные для формы при открытии модального окна
@@ -359,8 +391,43 @@ const loadFormData = async () => {
 			</div>
 		</div>
 
+		<div class="stats-grid">
+			<div class="stat-card card">
+				<div class="stat-icon" aria-hidden="true">📝</div>
+				<div class="stat-info">
+					<h3 class="stat-value">{{ totalTransactions }}</h3>
+					<p class="stat-label">Всего транзакций</p>
+					<p class="stat-detail">В системе</p>
+				</div>
+			</div>
+			<div class="stat-card card">
+				<div class="stat-icon" aria-hidden="true">✓</div>
+				<div class="stat-info">
+					<h3 class="stat-value">{{ statsCompleted !== null ? statsCompleted : '—' }}</h3>
+					<p class="stat-label">Завершённые</p>
+					<p class="stat-detail">Успешно проведены</p>
+				</div>
+			</div>
+			<div class="stat-card card">
+				<div class="stat-icon" aria-hidden="true">⏳</div>
+				<div class="stat-info">
+					<h3 class="stat-value">{{ statsPending !== null ? statsPending : '—' }}</h3>
+					<p class="stat-label">В ожидании</p>
+					<p class="stat-detail">Ожидают обработки</p>
+				</div>
+			</div>
+			<div class="stat-card card">
+				<div class="stat-icon" aria-hidden="true">○</div>
+				<div class="stat-info">
+					<h3 class="stat-value">{{ statsCancelled !== null ? statsCancelled : '—' }}</h3>
+					<p class="stat-label">Отменённые</p>
+					<p class="stat-detail">Отменены</p>
+				</div>
+			</div>
+		</div>
+
 		<div class="filters card">
-			<h3>Фильтры</h3>
+			<h4 class="filters-title">Фильтры</h4>
 			<div class="filters-grid">
 				<div class="form-group">
 					<label>Поиск</label>
@@ -437,6 +504,14 @@ const loadFormData = async () => {
 				:selected-rows="selectedTransactions"
 				@update:selected-rows="selectedTransactions = $event"
 			>
+				<template #cell-status="{ value }">
+					<span
+						class="status-badge"
+						:class="value === 'completed' ? 'status-completed' : value === 'pending' ? 'status-pending' : 'status-cancelled'"
+					>
+						{{ getTransactionStatusLabel(value) }}
+					</span>
+				</template>
 				<template #empty>
 					<div class="table-empty-state">
 						<p class="table-empty-state__text">Нет транзакций</p>
@@ -567,6 +642,8 @@ const loadFormData = async () => {
 </template>
 
 <style scoped lang="scss">
+@import '@/assets/scss/variables.scss';
+
 .page-header {
 	display: flex;
 	justify-content: space-between;
@@ -587,6 +664,64 @@ const loadFormData = async () => {
 .loading {
 	padding: $spacing-lg;
 	text-align: center;
+}
+
+.stats-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: $spacing-md;
+	margin-bottom: $spacing-lg;
+}
+
+.stat-card {
+	display: flex;
+	align-items: center;
+	gap: $spacing-md;
+	padding: $spacing-lg;
+}
+
+.stat-icon {
+	font-size: $font-size-2xl;
+	width: 48px;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba($primary-color, 0.1);
+	border-radius: 50%;
+	color: $primary-color;
+}
+
+.stat-value {
+	font-size: $font-size-2xl;
+	font-weight: $font-weight-semibold;
+	color: $text-primary;
+	letter-spacing: $letter-spacing-tight;
+	margin: 0 0 $spacing-xs 0;
+}
+
+.stat-label {
+	color: $text-muted;
+	font-size: $font-size-sm;
+	margin: 0;
+}
+
+.stat-detail {
+	color: $text-secondary;
+	font-size: $font-size-xs;
+	margin: $spacing-xs 0 0 0;
+}
+
+.filters {
+	margin-bottom: $spacing-lg;
+	padding: $spacing-md $spacing-lg;
+}
+
+.filters-title {
+	margin: 0 0 $spacing-md 0;
+	font-size: $font-size-base;
+	font-weight: $font-weight-semibold;
+	color: $text-primary;
 }
 
 .transaction-form {
@@ -619,21 +754,11 @@ label {
 	}
 }
 
-.filters {
-	margin-bottom: $spacing-lg;
-	padding: $spacing-lg;
-
-	h3 {
-		margin-bottom: $spacing-md;
-		font-size: $font-size-lg;
-	}
-}
-
 .filters-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	gap: $spacing-md;
-	margin-bottom: $spacing-md;
+	margin-bottom: $spacing-sm;
 }
 
 .filters-actions {
@@ -677,9 +802,48 @@ label {
 .no-results {
 	padding: $spacing-xl;
 	text-align: center;
-	color: #666;
-	background: white;
+	color: $text-secondary;
+	background: $bg-elevated;
 	border-radius: $border-radius;
 	box-shadow: $shadow-sm;
+}
+
+.status-badge {
+	display: inline-block;
+	padding: $spacing-xs $spacing-sm;
+	border-radius: $radius-sm;
+	font-size: $font-size-xs;
+	font-weight: $font-weight-medium;
+
+	&.status-completed {
+		background: $success-light;
+		color: $success;
+	}
+	&.status-pending {
+		background: $warning-light;
+		color: $warning-orange;
+	}
+	&.status-cancelled {
+		background: $bg-subtle;
+		color: $text-muted;
+	}
+}
+
+.table-empty-state {
+	padding: $spacing-xl;
+	text-align: center;
+
+	&__text {
+		font-size: $font-size-base;
+		font-weight: $font-weight-medium;
+		color: $text-primary;
+		margin: 0 0 $spacing-xs 0;
+	}
+
+	&__hint {
+		font-size: $font-size-sm;
+		color: $text-muted;
+		margin: 0 0 $spacing-md 0;
+	}
 }
 </style>

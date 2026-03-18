@@ -58,6 +58,11 @@ const bulkStatusForm = ref({
 const bulkProgress = ref({ done: 0, total: 0 });
 const bulkSaving = ref(false);
 const BULK_BATCH_SIZE = 8;
+
+// Статистика для карточек (Vuexy-style)
+const statsActive = ref<number | null>(null);
+const statsRepair = ref<number | null>(null);
+const statsReserve = ref<number | null>(null);
 const maintenanceHistory = ref<MaintenanceHistory[]>([]);
 const photoInput = ref<HTMLInputElement | null>(null);
 const documentInput = ref<HTMLInputElement | null>(null);
@@ -361,7 +366,7 @@ const deleteDocument = (documentPath: string) => {
 };
 
 const columns = [
-	{ key: 'brand', label: 'Марка' },
+	{ key: 'brand', label: 'Автомобиль' },
 	{ key: 'model', label: 'Модель' },
 	{ key: 'plate_number', label: 'Гос. номер' },
 	{ key: 'year', label: 'Год' },
@@ -505,12 +510,30 @@ const handlePrint = () => {
 	if (typeof window !== 'undefined') window.print();
 };
 
+const loadStats = async () => {
+	try {
+		const [activeRes, repairRes, reserveRes] = await Promise.all([
+			carsApi.getAll({ status: 'active', page: 1, limit: 1 }),
+			carsApi.getAll({ status: 'repair', page: 1, limit: 1 }),
+			carsApi.getAll({ status: 'reserve', page: 1, limit: 1 }),
+		]);
+		statsActive.value = activeRes.total;
+		statsRepair.value = repairRes.total;
+		statsReserve.value = reserveRes.total;
+	} catch {
+		statsActive.value = 0;
+		statsRepair.value = 0;
+		statsReserve.value = 0;
+	}
+};
+
 onMounted(async () => {
 	const statusFromQuery = route.query.status as string;
 	if (statusFromQuery && ['active', 'repair', 'reserve'].includes(statusFromQuery)) {
 		filters.value.status = statusFromQuery;
 	}
 	await fetchCarsPage();
+	await loadStats();
 
 	const editCarId = route.query.edit as string;
 	if (editCarId) {
@@ -581,8 +604,42 @@ onMounted(async () => {
 		<div v-if="carsStore.loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка...</div>
 		<div v-else-if="carsStore.error" class="error">{{ carsStore.error }}</div>
 		<template v-else>
+			<div class="stats-grid">
+				<div class="stat-card card">
+					<div class="stat-icon" aria-hidden="true">🚗</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ carsStore.total }}</h3>
+						<p class="stat-label">Всего авто</p>
+						<p class="stat-detail">В гараже</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon" aria-hidden="true">✓</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ statsActive !== null ? statsActive : '—' }}</h3>
+						<p class="stat-label">Активные</p>
+						<p class="stat-detail">В эксплуатации</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon" aria-hidden="true">🔧</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ statsRepair !== null ? statsRepair : '—' }}</h3>
+						<p class="stat-label">В ремонте</p>
+						<p class="stat-detail">На обслуживании</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon" aria-hidden="true">○</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ statsReserve !== null ? statsReserve : '—' }}</h3>
+						<p class="stat-label">Резерв</p>
+						<p class="stat-detail">В резерве</p>
+					</div>
+				</div>
+			</div>
 			<div class="filters card">
-				<h3>Фильтры</h3>
+				<h4 class="filters-title">Фильтры</h4>
 				<div class="filters-grid">
 					<div class="form-group">
 						<label>Поиск</label>
@@ -627,6 +684,12 @@ onMounted(async () => {
 				:selected-rows="selectedCars"
 				@update:selected-rows="selectedCars = $event"
 			>
+				<template #cell-brand="{ row }">
+					<div class="entity-cell">
+						<span class="entity-icon" aria-hidden="true">🚗</span>
+						<span class="entity-name">{{ (row as Car).brand }} {{ (row as Car).model }}</span>
+					</div>
+				</template>
 				<template #empty>
 					<div class="table-empty-state">
 						<p class="table-empty-state__text">Нет автомобилей</p>
@@ -933,6 +996,8 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="scss">
+@import '@/assets/scss/variables.scss';
+
 .page-header {
 	display: flex;
 	justify-content: space-between;
@@ -958,6 +1023,64 @@ onMounted(async () => {
 
 .error {
 	color: $warning;
+}
+
+.stats-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: $spacing-md;
+	margin-bottom: $spacing-lg;
+}
+
+.stat-card {
+	display: flex;
+	align-items: center;
+	gap: $spacing-md;
+	padding: $spacing-lg;
+}
+
+.stat-icon {
+	font-size: $font-size-2xl;
+	width: 48px;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba($primary-color, 0.1);
+	border-radius: 50%;
+	color: $primary-color;
+}
+
+.stat-value {
+	font-size: $font-size-2xl;
+	font-weight: $font-weight-semibold;
+	color: $text-primary;
+	letter-spacing: $letter-spacing-tight;
+	margin: 0 0 $spacing-xs 0;
+}
+
+.stat-label {
+	color: $text-muted;
+	font-size: $font-size-sm;
+	margin: 0;
+}
+
+.stat-detail {
+	color: $text-secondary;
+	font-size: $font-size-xs;
+	margin: $spacing-xs 0 0 0;
+}
+
+.filters {
+	margin-bottom: $spacing-lg;
+	padding: $spacing-md $spacing-lg;
+}
+
+.filters-title {
+	margin: 0 0 $spacing-md 0;
+	font-size: $font-size-base;
+	font-weight: $font-weight-semibold;
+	color: $text-primary;
 }
 
 .car-form {
@@ -1009,22 +1132,11 @@ label {
 	padding: $spacing-md;
 }
 
-.filters {
-	margin-bottom: $spacing-lg;
-	padding: $spacing-lg;
-
-	h3 {
-		margin-bottom: $spacing-md;
-		font-size: $font-size-lg;
-		color: $text-primary;
-	}
-}
-
 .filters-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	gap: $spacing-md;
-	margin-bottom: $spacing-md;
+	margin-bottom: $spacing-sm;
 }
 
 .filters-actions {
@@ -1074,10 +1186,73 @@ label {
 .no-results {
 	padding: $spacing-xl;
 	text-align: center;
-	color: #666;
-	background: white;
+	color: $text-secondary;
+	background: $bg-elevated;
 	border-radius: $border-radius;
 	box-shadow: $shadow-sm;
+}
+
+.entity-cell {
+	display: flex;
+	align-items: center;
+	gap: $spacing-md;
+}
+
+.entity-icon {
+	font-size: $font-size-lg;
+	width: 36px;
+	height: 36px;
+	min-width: 36px;
+	border-radius: 50%;
+	background: $primary-light;
+	color: $primary-dark;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.entity-name {
+	font-weight: $font-weight-medium;
+	color: $text-primary;
+}
+
+.status-badge {
+	display: inline-block;
+	padding: $spacing-xs $spacing-sm;
+	border-radius: $radius-sm;
+	font-size: $font-size-xs;
+	font-weight: $font-weight-medium;
+
+	&.status-active {
+		background: $success-light;
+		color: $success;
+	}
+	&.status-repair {
+		background: $warning-light;
+		color: $warning-orange;
+	}
+	&.status-reserve {
+		background: $bg-subtle;
+		color: $text-muted;
+	}
+}
+
+.table-empty-state {
+	padding: $spacing-xl;
+	text-align: center;
+
+	&__text {
+		font-size: $font-size-base;
+		font-weight: $font-weight-medium;
+		color: $text-primary;
+		margin: 0 0 $spacing-xs 0;
+	}
+
+	&__hint {
+		font-size: $font-size-sm;
+		color: $text-muted;
+		margin: 0 0 $spacing-md 0;
+	}
 }
 
 .maintenance-content {

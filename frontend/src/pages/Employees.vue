@@ -42,6 +42,11 @@ const bulkStatusForm = ref({
 const bulkProgress = ref({ done: 0, total: 0 });
 const bulkSaving = ref(false);
 const BULK_BATCH_SIZE = 8;
+
+// Статистика для карточек (Vuexy-style)
+const statsActive = ref<number | null>(null);
+const statsInactive = ref<number | null>(null);
+
 const formData = ref<Partial<Employee>>({
 	full_name: '',
 	position: '',
@@ -60,6 +65,17 @@ const departments = computed(() => {
 	return Array.from(depts).sort();
 });
 
+const departmentsCount = computed(() => departments.value.length);
+
+/** Инициалы для аватара: первые буквы слов ФИО (1–2 буквы) */
+function getInitials(fullName: string): string {
+	if (!fullName || typeof fullName !== 'string') return '?';
+	const words = fullName.trim().split(/\s+/).filter(Boolean);
+	if (words.length === 0) return '?';
+	if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+	return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
 const employeeStatusOptions = [
 	{ value: 'active', label: 'Активен' },
 	{ value: 'inactive', label: 'Неактивен' },
@@ -74,7 +90,11 @@ const filterDepartmentOptions = computed(() => [
 ]);
 
 const filteredEmployees = computed(() => {
-	let filtered = filterData(employeesStore.employees, searchQuery.value, ['full_name', 'position', 'department', 'phone']);
+	let filtered = filterData(
+		employeesStore.employees,
+		searchQuery.value,
+		['full_name', 'position', 'department', 'phone'],
+	);
 
 	// Фильтр по статусу
 	if (filters.value.status) {
@@ -89,7 +109,13 @@ const filteredEmployees = computed(() => {
 	return filtered;
 });
 
-const hasActiveFilters = computed(() => Boolean(searchQuery.value || filters.value.status || filters.value.department));
+const hasActiveFilters = computed(() =>
+	Boolean(searchQuery.value || filters.value.status || filters.value.department),
+);
+
+const modalTitle = computed(() =>
+	editingEmployee.value ? 'Редактировать сотрудника' : 'Добавить сотрудника',
+);
 
 const currentPage = ref(1);
 const pageSize = ref(25);
@@ -134,6 +160,17 @@ const clearSelection = () => {
 	selectedEmployees.value = [];
 };
 
+const resetBulkProgress = () => {
+	bulkProgress.value = { done: 0, total: 0 };
+};
+
+const onBulkStatusModalClose = (val: boolean) => {
+	if (!val) {
+		bulkStatusForm.value.status = 'active';
+		resetBulkProgress();
+	}
+};
+
 const bulkChangeStatus = () => {
 	if (selectedEmployees.value.length === 0) return;
 	bulkProgress.value = { done: 0, total: 0 };
@@ -172,7 +209,11 @@ const bulkDelete = () => {
 		onConfirm: async () => {
 			try {
 				const items = [...selectedEmployees.value];
-				await runBulkInBatches(items, BULK_BATCH_SIZE, (employee) => employeesStore.deleteEmployee(employee._id));
+				await runBulkInBatches(
+					items,
+					BULK_BATCH_SIZE,
+					(employee) => employeesStore.deleteEmployee(employee._id),
+				);
 				toast.success(`Удалено ${count} сотрудников`);
 				clearSelection();
 				await fetchEmployeesPage();
@@ -196,8 +237,8 @@ const resetForm = () => {
 	editingEmployee.value = null;
 };
 
-const columns = [
-	{ key: 'full_name', label: 'ФИО' },
+const columns: { key: string; label: string; format?: 'date' | 'currency' | 'number' }[] = [
+	{ key: 'full_name', label: 'Сотрудник' },
 	{ key: 'position', label: 'Должность' },
 	{ key: 'department', label: 'Отдел' },
 	{ key: 'phone', label: 'Телефон' },
@@ -279,8 +320,23 @@ const handlePrint = () => {
 	if (typeof window !== 'undefined') window.print();
 };
 
+const loadStats = async () => {
+	try {
+		const [activeRes, inactiveRes] = await Promise.all([
+			employeesApi.getAll({ status: 'active', page: 1, limit: 1 }),
+			employeesApi.getAll({ status: 'inactive', page: 1, limit: 1 }),
+		]);
+		statsActive.value = activeRes.total;
+		statsInactive.value = inactiveRes.total;
+	} catch {
+		statsActive.value = 0;
+		statsInactive.value = 0;
+	}
+};
+
 onMounted(async () => {
 	await fetchEmployeesPage();
+	await loadStats();
 	const editId = route.query.edit as string;
 	if (editId) {
 		let emp = employeesStore.employees.find((e) => e._id === editId);
@@ -325,8 +381,42 @@ onMounted(async () => {
 		<div v-if="employeesStore.loading" class="loading" role="status" aria-live="polite" aria-label="Загрузка данных">Загрузка...</div>
 		<div v-else-if="employeesStore.error" class="error">{{ employeesStore.error }}</div>
 		<template v-else>
+			<div class="stats-grid">
+				<div class="stat-card card">
+					<div class="stat-icon">👥</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ employeesStore.total }}</h3>
+						<p class="stat-label">Всего сотрудников</p>
+						<p class="stat-detail">В базе</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon" aria-hidden="true">✓</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ statsActive !== null ? statsActive : '—' }}</h3>
+						<p class="stat-label">Активные</p>
+						<p class="stat-detail">Работают в компании</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon">○</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ statsInactive !== null ? statsInactive : '—' }}</h3>
+						<p class="stat-label">Неактивные</p>
+						<p class="stat-detail">Не на работе</p>
+					</div>
+				</div>
+				<div class="stat-card card">
+					<div class="stat-icon">🏢</div>
+					<div class="stat-info">
+						<h3 class="stat-value">{{ departmentsCount }}</h3>
+						<p class="stat-label">Отделов</p>
+						<p class="stat-detail">На текущей странице</p>
+					</div>
+				</div>
+			</div>
 			<div class="filters card">
-				<h3>Фильтры</h3>
+				<h4 class="filters-title">Фильтры</h4>
 				<div class="filters-grid">
 					<div class="form-group">
 						<label>Поиск</label>
@@ -372,6 +462,17 @@ onMounted(async () => {
 				:selected-rows="selectedEmployees"
 				@update:selected-rows="selectedEmployees = $event"
 			>
+				<template #cell-full_name="{ row }">
+					<div class="employee-cell">
+						<span class="avatar">{{ getInitials((row as unknown as Employee).full_name) }}</span>
+						<span class="employee-name">{{ (row as unknown as Employee).full_name }}</span>
+					</div>
+				</template>
+				<template #cell-status="{ value }">
+					<span class="status-badge" :class="value === 'active' ? 'status-active' : 'status-inactive'">
+						{{ value === 'active' ? 'Активен' : 'Неактивен' }}
+					</span>
+				</template>
 				<template #empty>
 					<div class="table-empty-state">
 						<p class="table-empty-state__text">Нет сотрудников</p>
@@ -402,9 +503,9 @@ onMounted(async () => {
 
 		<Modal
 			v-model:is-open="showModal"
-			:title="editingEmployee ? 'Редактировать сотрудника' : 'Добавить сотрудника'"
+			:title="modalTitle"
 			@confirm="handleSave"
-			@update:is-open="(val) => { if (!val) resetForm() }"
+			@update:is-open="(val: boolean) => { if (!val) resetForm(); }"
 		>
 			<form class="employee-form">
 				<FormField label="ФИО" required field-id="employee-full_name">
@@ -420,7 +521,13 @@ onMounted(async () => {
 					<input id="employee-phone" v-model="formData.phone" required class="form-input" />
 				</FormField>
 				<FormField label="Дата найма" required field-id="employee-hire_date">
-					<input id="employee-hire_date" v-model="formData.hire_date" type="date" required class="form-input" />
+					<input
+						id="employee-hire_date"
+						v-model="formData.hire_date"
+						type="date"
+						required
+						class="form-input"
+					/>
 				</FormField>
 				<FormField label="Статус" required field-id="employee-status">
 					<AppSelect
@@ -439,7 +546,7 @@ onMounted(async () => {
 			title="Изменить статус"
 			:confirm-disabled="bulkSaving"
 			@confirm="handleBulkStatusSave"
-			@update:is-open="(val) => { if (!val) { bulkStatusForm.status = 'active'; bulkProgress.value = { done: 0, total: 0 }; } }"
+			@update:is-open="onBulkStatusModalClose"
 		>
 			<form class="bulk-status-form">
 				<FormField label="Новый статус" required field-id="employee-bulk-status">
@@ -472,6 +579,8 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="scss">
+@import '@/assets/scss/variables.scss';
+
 .page-header {
 	display: flex;
 	justify-content: space-between;
@@ -499,22 +608,69 @@ onMounted(async () => {
 	color: $warning;
 }
 
+.stats-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: $spacing-md;
+	margin-bottom: $spacing-lg;
+}
+
+.stat-card {
+	display: flex;
+	align-items: center;
+	gap: $spacing-md;
+	padding: $spacing-lg;
+}
+
+.stat-icon {
+	font-size: $font-size-2xl;
+	width: 48px;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba($primary-color, 0.1);
+	border-radius: 50%;
+	color: $primary-color;
+}
+
+.stat-value {
+	font-size: $font-size-2xl;
+	font-weight: $font-weight-semibold;
+	color: $text-primary;
+	letter-spacing: $letter-spacing-tight;
+	margin: 0 0 $spacing-xs 0;
+}
+
+.stat-label {
+	color: $text-muted;
+	font-size: $font-size-sm;
+	margin: 0;
+}
+
+.stat-detail {
+	color: $text-secondary;
+	font-size: $font-size-xs;
+	margin: $spacing-xs 0 0 0;
+}
+
 .filters {
 	margin-bottom: $spacing-lg;
-	padding: $spacing-lg;
+	padding: $spacing-md $spacing-lg;
+}
 
-	h3 {
-		margin-bottom: $spacing-md;
-		font-size: $font-size-lg;
-		color: $text-primary;
-	}
+.filters-title {
+	margin: 0 0 $spacing-md 0;
+	font-size: $font-size-base;
+	font-weight: $font-weight-semibold;
+	color: $text-primary;
 }
 
 .filters-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	gap: $spacing-md;
-	margin-bottom: $spacing-md;
+	margin-bottom: $spacing-sm;
 }
 
 .filters-actions {
@@ -587,9 +743,70 @@ label {
 .no-results {
 	padding: $spacing-xl;
 	text-align: center;
-	color: #666;
-	background: white;
+	color: $text-secondary;
+	background: $bg-elevated;
 	border-radius: $border-radius;
 	box-shadow: $shadow-sm;
+}
+
+.employee-cell {
+	display: flex;
+	align-items: center;
+	gap: $spacing-md;
+}
+
+.avatar {
+	width: 36px;
+	height: 36px;
+	min-width: 36px;
+	border-radius: 50%;
+	background: $primary-light;
+	color: $primary-dark;
+	font-size: $font-size-sm;
+	font-weight: $font-weight-semibold;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.employee-name {
+	font-weight: $font-weight-medium;
+	color: $text-primary;
+}
+
+.status-badge {
+	display: inline-block;
+	padding: $spacing-xs $spacing-sm;
+	border-radius: $radius-sm;
+	font-size: $font-size-xs;
+	font-weight: $font-weight-medium;
+}
+
+.status-active {
+	background: $success-light;
+	color: $success;
+}
+
+.status-inactive {
+	background: $bg-subtle;
+	color: $text-muted;
+}
+
+.table-empty-state {
+	padding: $spacing-xl;
+	text-align: center;
+
+	&__text {
+		font-size: $font-size-base;
+		font-weight: $font-weight-medium;
+		color: $text-primary;
+		margin: 0 0 $spacing-xs 0;
+	}
+
+	&__hint {
+		font-size: $font-size-sm;
+		color: $text-muted;
+		margin: 0 0 $spacing-md 0;
+	}
 }
 </style>
