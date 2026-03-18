@@ -15,22 +15,22 @@ const router = createRouter({
 	routes: [
 		{
 			path: '/login',
-			name: 'Login',
 			component: () => import('@/layouts/AuthLayout.vue'),
 			children: [
 				{
 					path: '',
+					name: 'Login',
 					component: () => import('@/pages/Login.vue'),
 				},
 			],
 		},
 		{
 			path: '/register',
-			name: 'Register',
 			component: () => import('@/layouts/AuthLayout.vue'),
 			children: [
 				{
 					path: '',
+					name: 'Register',
 					component: () => import('@/pages/Register.vue'),
 				},
 			],

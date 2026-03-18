@@ -4,25 +4,15 @@ import {
 } from 'vue';
 import AppButton from '@/components/common/AppButton.vue';
 
-interface Props {
-	isOpen: boolean
-	title?: string
-	message?: string
-	confirmLabel?: string
-	cancelLabel?: string
-	variant?: 'danger' | 'primary'
-	/** Вызывается при нажатии кнопки подтверждения */
-	onConfirm?: () => void | Promise<void>
-	/** Вызывается при закрытии (Отмена, крестик, клик по overlay) */
-	onClose?: () => void
-}
-
-const props = withDefaults(defineProps<Props>(), {
-	title: 'Подтверждение',
-	message: '',
-	confirmLabel: 'Удалить',
-	cancelLabel: 'Отмена',
-	variant: 'danger',
+const props = defineProps({
+	isOpen: { type: [Boolean, Object], default: false },
+	title: { type: [String, Object], default: 'Подтверждение' },
+	message: { type: [String, Object], default: '' },
+	confirmLabel: { type: [String, Object], default: 'Удалить' },
+	cancelLabel: { type: [String, Object], default: 'Отмена' },
+	variant: { type: [String, Object], default: 'danger' },
+	onConfirm: { type: Function, default: undefined },
+	onClose: { type: Function, default: undefined },
 });
 
 const emit = defineEmits<{
